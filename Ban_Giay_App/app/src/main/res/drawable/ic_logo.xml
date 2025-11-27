@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="150dp"
+    android:height="150dp"
+    android:viewportWidth="150"
+    android:viewportHeight="150">
+    
+    <!-- Outer circle background -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M75,5 A70,70 0 1,1 75,145 A70,70 0 1,1 75,5 Z" />
+    
+    <!-- Inner circle (globe base) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M75,30 A45,45 0 1,1 75,120 A45,45 0 1,1 75,30 Z" />
+    
+    <!-- Globe lines (longitude) -->
+    <path
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:pathData="M75,30 Q60,50 60,75 Q60,100 75,120" />
+    <path
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:pathData="M75,30 Q90,50 90,75 Q90,100 75,120" />
+    
+    <!-- Globe lines (latitude) -->
+    <path
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:pathData="M45,50 Q60,60 75,60 Q90,60 105,50" />
+    <path
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:pathData="M45,100 Q60,90 75,90 Q90,90 105,100" />
+    
+    <!-- Sneaker icon inside globe -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M65,70 L62,82 L68,85 L75,82 L82,85 L88,82 L85,70 L82,65 L75,62 L68,65 Z" />
+</vector>
+

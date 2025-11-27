@@ -1,3 +1,20 @@
 <resources>
     <string name="app_name">Ban_Giay_App</string>
+    <string name="logout">Đăng xuất</string>
+    <string name="account">Tài khoản</string>
+    <string name="back">Quay lại</string>
+    <string name="default_user_name">Người dùng</string>
+    <string name="logging_in">Đang đăng nhập...</string>
+    <string name="error_email_required">Vui lòng nhập email</string>
+    <string name="error_password_required">Vui lòng nhập mật khẩu</string>
+    <string name="error_confirm_password">Vui lòng xác nhận mật khẩu</string>
+    <string name="error_password_mismatch">Mật khẩu xác nhận chưa khớp</string>
+    <string name="error_please_register">Chưa có tài khoản, vui lòng đăng ký</string>
+    <string name="error_invalid_credentials">Email hoặc mật khẩu chưa đúng</string>
+    <string name="login_success">Đăng nhập thành công</string>
+    <string name="register_success">Đăng ký thành công, hãy đăng nhập</string>
+    <string name="logout_success">Đăng xuất thành công</string>
+    <string name="error_no_connection">Không có kết nối internet</string>
+    <string name="registering">Đang đăng ký...</string>
+    <string name="sending_request">Đang gửi yêu cầu...</string>
 </resources>
