@@ -17,4 +17,6 @@
     <string name="error_no_connection">Không có kết nối internet</string>
     <string name="registering">Đang đăng ký...</string>
     <string name="sending_request">Đang gửi yêu cầu...</string>
+    <string name="error_otp_required">Vui lòng nhập mã OTP</string>
+    <string name="error_missing_otp">Vui lòng xác thực OTP trước</string>
 </resources>

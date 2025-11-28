@@ -5,6 +5,24 @@ const nodemailer = require("nodemailer");
 
 // SECRET KEY cho JWT
 const JWT_SECRET = "ban_giay_secret_key";
+const OTP_EXPIRES_MINUTES = 5;
+const EMAIL_USER = process.env.EMAIL_USER || "hahsjdbfbf@gmail.com";
+const EMAIL_PASS = (process.env.EMAIL_PASS || "pehigz dylepeqpzi").replace(/\s+/g, "");
+
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: EMAIL_USER,
+    pass: EMAIL_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false,
+  },
+});
+
+const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 // ---------------- ĐĂNG KÝ ----------------
 exports.register = async (req, res) => {
@@ -47,33 +65,85 @@ exports.forgotPassword = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: "Email không tồn tại" });
 
-    // Tạo mật khẩu tạm thời
-    const tempPassword = Math.random().toString(36).slice(-8);
-    user.mat_khau = tempPassword;
+    const otp = generateOtp();
+    user.otp_code = otp;
+    user.otp_expires = new Date(Date.now() + OTP_EXPIRES_MINUTES * 60 * 1000);
+    user.otp_verified = false;
     await user.save();
 
-    // Gửi email
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: "youremail@gmail.com", // đổi thành email của bạn
-        pass: "yourpassword", // mật khẩu ứng dụng Gmail
-      },
-    });
-
     const mailOptions = {
-      from: "youremail@gmail.com",
+      from: EMAIL_USER,
       to: user.email,
-      subject: "Quên mật khẩu",
-      text: `Mật khẩu mới của bạn là: ${tempPassword}`,
+      subject: "Mã OTP đặt lại mật khẩu",
+      text: `Mã OTP của bạn là: ${otp}. Mã sẽ hết hạn sau ${OTP_EXPIRES_MINUTES} phút.`,
     };
 
-    transporter.sendMail(mailOptions, (err, info) => {
-      if (err) console.log(err);
-      else console.log("Email sent: " + info.response);
-    });
+    try {
+      await transporter.sendMail(mailOptions);
+    } catch (error) {
+      console.error("Send OTP failed:", error);
+      return res
+        .status(500)
+        .json({ message: "Không thể gửi OTP, vui lòng kiểm tra cấu hình email." });
+    }
 
-    res.json({ message: "Mật khẩu mới đã được gửi vào email của bạn" });
+    res.json({ message: "Mã OTP đã được gửi vào email của bạn" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ---------------- XÁC THỰC OTP ----------------
+exports.verifyOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "Email không tồn tại" });
+
+    if (
+      !user.otp_code ||
+      !user.otp_expires ||
+      user.otp_code !== otp ||
+      user.otp_expires < new Date()
+    ) {
+      return res.status(400).json({ message: "Mã OTP không hợp lệ hoặc đã hết hạn" });
+    }
+
+    user.otp_verified = true;
+    await user.save();
+    res.json({ message: "Xác minh OTP thành công" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ---------------- ĐẶT LẠI MẬT KHẨU ----------------
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, otp, new_password } = req.body;
+    if (!new_password) {
+      return res.status(400).json({ message: "Mật khẩu mới không được để trống" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "Email không tồn tại" });
+
+    if (
+      !user.otp_code ||
+      !user.otp_expires ||
+      user.otp_code !== otp ||
+      user.otp_expires < new Date()
+    ) {
+      return res.status(400).json({ message: "Mã OTP không hợp lệ hoặc đã hết hạn" });
+    }
+
+    user.mat_khau = new_password;
+    user.otp_code = undefined;
+    user.otp_expires = undefined;
+    user.otp_verified = false;
+    await user.save();
+
+    res.json({ message: "Đặt lại mật khẩu thành công" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
