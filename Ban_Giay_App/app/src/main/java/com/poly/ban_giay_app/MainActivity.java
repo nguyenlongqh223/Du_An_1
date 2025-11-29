@@ -119,16 +119,17 @@ public class MainActivity extends AppCompatActivity {
         rvTop.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
 
         topProductList = new ArrayList<>();
-        topProductList.add(new Product("Giày ARK", "750,000₫", "480,000₫", R.drawable.giaymau));
-        topProductList.add(new Product("Giày Sneaker", "680,000₫", "480,000₫", R.drawable.giaymau));
-        topProductList.add(new Product("Giày Sneaker CROON", "680,000₫", "480,000₫", R.drawable.giaymau));
-        topProductList.add(new Product("Giày Nike Air Max", "1,200,000₫", "950,000₫", R.drawable.giaymau));
-        topProductList.add(new Product("Giày Adidas UltraBoost", "1,500,000₫", "1,200,000₫", R.drawable.giaymau));
-        topProductList.add(new Product("Giày Puma RS-X", "1,000,000₫", "750,000₫", R.drawable.giaymau));
-        topProductList.add(new Product("Giày Converse Chuck", "850,000₫", "650,000₫", R.drawable.giaymau));
-        topProductList.add(new Product("Giày Vans Old Skool", "900,000₫", "680,000₫", R.drawable.giaymau));
-        topProductList.add(new Product("Giày New Balance 550", "1,100,000₫", "850,000₫", R.drawable.giaymau));
-        topProductList.add(new Product("Giày Reebok Classic", "950,000₫", "720,000₫", R.drawable.giaymau));
+        // Dòng sản phẩm hot trên banner
+        topProductList.add(new Product("Nike Air Max Red", "3,200,000₫", "2,690,000₫", R.drawable.giaymau));
+        topProductList.add(new Product("Air Jordan 1 Low Gold", "3,500,000₫", "2,990,000₫", R.drawable.giaymau_1));
+        topProductList.add(new Product("Air Jordan 1 Mid Triple Black", "3,000,000₫", "2,590,000₫", R.drawable.giay2));
+        topProductList.add(new Product("Air Jordan 1 Low Orange", "3,200,000₫", "2,750,000₫", R.drawable.giay3));
+        topProductList.add(new Product("Air Jordan 1 High Orange", "3,800,000₫", "3,150,000₫", R.drawable.giay4));
+        topProductList.add(new Product("Air Jordan 1 Low UNC Blue", "3,200,000₫", "2,790,000₫", R.drawable.giay5));
+        topProductList.add(new Product("Air Jordan 1 Mid Panda", "3,400,000₫", "2,890,000₫", R.drawable.giy6));
+        topProductList.add(new Product("Nike Dunk Low Black/White", "2,900,000₫", "2,450,000₫", R.drawable.giy6));
+        topProductList.add(new Product("Nike Dunk Low Grey/White", "2,900,000₫", "2,450,000₫", R.drawable.giay7));
+        topProductList.add(new Product("Air Force 1 Green Swoosh", "3,000,000₫", "2,590,000₫", R.drawable.giay8));
 
         topProductAdapter = new ProductAdapter(topProductList);
         rvTop.setAdapter(topProductAdapter);
@@ -138,16 +139,14 @@ public class MainActivity extends AppCompatActivity {
         rvMen.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
 
         menProductList = new ArrayList<>();
-        menProductList.add(new Product("Giày ARK", "750,000₫", "480,000₫", R.drawable.giaymau));
-        menProductList.add(new Product("Giày Sneaker", "680,000₫", "480,000₫", R.drawable.giaymau));
-        menProductList.add(new Product("Giày Sneaker CROON", "680,000₫", "480,000₫", R.drawable.giaymau));
-        menProductList.add(new Product("Giày Nike Air Force 1", "1,100,000₫", "880,000₫", R.drawable.giaymau));
-        menProductList.add(new Product("Giày Adidas Stan Smith", "1,000,000₫", "750,000₫", R.drawable.giaymau));
-        menProductList.add(new Product("Giày Puma RS-X", "1,000,000₫", "750,000₫", R.drawable.giaymau));
-        menProductList.add(new Product("Giày Jordan 1 Retro", "1,500,000₫", "1,200,000₫", R.drawable.giaymau));
-        menProductList.add(new Product("Giày Vans Authentic", "850,000₫", "650,000₫", R.drawable.giaymau));
-        menProductList.add(new Product("Giày Converse All Star", "800,000₫", "600,000₫", R.drawable.giaymau));
-        menProductList.add(new Product("Giày New Balance 574", "1,200,000₫", "950,000₫", R.drawable.giaymau));
+        menProductList.add(new Product("Air Force 1 Beige", "3,000,000₫", "2,590,000₫", R.drawable.giay8));
+        menProductList.add(new Product("Air Force 1 Pastel", "3,200,000₫", "2,790,000₫", R.drawable.giay9));
+        menProductList.add(new Product("Nike Dunk Low Black/White", "2,900,000₫", "2,450,000₫", R.drawable.giay10));
+        menProductList.add(new Product("Nike Dunk Low Grey/White", "2,900,000₫", "2,450,000₫", R.drawable.giay11));
+        menProductList.add(new Product("Air Jordan 1 Mid Green", "3,200,000₫", "2,750,000₫", R.drawable.giay12));
+        menProductList.add(new Product("Air Force 1 Shadow Pastel", "3,200,000₫", "2,790,000₫", R.drawable.giay13));
+        menProductList.add(new Product("Air Jordan 1 Mid Grey/Blue", "3,200,000₫", "2,790,000₫", R.drawable.giay14));
+        menProductList.add(new Product("Nike Dunk Low Panda", "2,900,000₫", "2,450,000₫", R.drawable.giay15));
 
         menProductAdapter = new ProductAdapter(menProductList);
         rvMen.setAdapter(menProductAdapter);
