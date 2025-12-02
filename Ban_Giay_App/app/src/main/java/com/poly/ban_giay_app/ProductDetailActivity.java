@@ -1,5 +1,6 @@
 package com.poly.ban_giay_app;
 
+import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.text.SpannableString;
@@ -20,7 +21,6 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.bumptech.glide.Glide;
-import com.poly.ban_giay_app.R;
 import com.poly.ban_giay_app.models.Product;
 
 public class ProductDetailActivity extends AppCompatActivity {
@@ -30,6 +30,7 @@ public class ProductDetailActivity extends AppCompatActivity {
     private Product product;
     private int quantity = 1;
     private String selectedSize = "";
+    private SessionManager sessionManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,6 +51,8 @@ public class ProductDetailActivity extends AppCompatActivity {
             finish();
             return;
         }
+
+        sessionManager = new SessionManager(this);
 
         initViews();
         bindActions();
@@ -98,6 +101,9 @@ public class ProductDetailActivity extends AppCompatActivity {
 
         // Add to cart
         btnAddToCart.setOnClickListener(v -> {
+            if (!ensureLoggedIn()) {
+                return;
+            }
             if (selectedSize.isEmpty()) {
                 Toast.makeText(this, "Vui lòng chọn kích thước", Toast.LENGTH_SHORT).show();
                 return;
@@ -108,6 +114,9 @@ public class ProductDetailActivity extends AppCompatActivity {
 
         // Buy now
         btnBuyNow.setOnClickListener(v -> {
+            if (!ensureLoggedIn()) {
+                return;
+            }
             if (selectedSize.isEmpty()) {
                 Toast.makeText(this, "Vui lòng chọn kích thước", Toast.LENGTH_SHORT).show();
                 return;
@@ -138,6 +147,22 @@ public class ProductDetailActivity extends AppCompatActivity {
         button.setBackgroundResource(R.drawable.bg_size_button);
         button.setText(text);
         button.setTextColor(ContextCompat.getColor(this, android.R.color.white));
+    }
+
+    /**
+     * Kiểm tra đăng nhập. Nếu chưa đăng nhập thì chuyển sang màn Login.
+     *
+     * @return true nếu đã đăng nhập, false nếu đã chuyển sang Login.
+     */
+    private boolean ensureLoggedIn() {
+        if (sessionManager != null && sessionManager.isLoggedIn()) {
+            return true;
+        }
+
+        Toast.makeText(this, "Vui lòng đăng nhập để tiếp tục mua hàng", Toast.LENGTH_SHORT).show();
+        Intent intent = new Intent(this, LoginActivity.class);
+        startActivity(intent);
+        return false;
     }
 
     private void displayProduct() {

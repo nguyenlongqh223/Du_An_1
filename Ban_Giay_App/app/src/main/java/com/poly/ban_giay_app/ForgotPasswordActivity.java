@@ -6,6 +6,8 @@ import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -28,15 +30,20 @@ import retrofit2.Response;
 public class ForgotPasswordActivity extends AppCompatActivity {
 
     private View btnBack;
+    private TextView txtDescription;
+    private LinearLayout layoutOtpStep;
+    private LinearLayout layoutNewPasswordStep;
     private EditText edtPhoneEmail;
     private EditText edtVerificationCode;
     private EditText edtNewPassword;
     private EditText edtConfirmNewPassword;
     private Button btnSendCode;
+    private Button btnVerifyOtp;
     private Button btnResetPassword;
     private ProgressDialog progressDialog;
     private ApiService apiService;
     private String userEmail; // Lưu email để dùng cho verify OTP
+    private String cachedOtp;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,17 +67,22 @@ public class ForgotPasswordActivity extends AppCompatActivity {
 
     private void initViews() {
         btnBack = findViewById(R.id.btnBack);
+        txtDescription = findViewById(R.id.txtDescription);
+        layoutOtpStep = findViewById(R.id.layoutOtpStep);
+        layoutNewPasswordStep = findViewById(R.id.layoutNewPasswordStep);
         edtPhoneEmail = findViewById(R.id.edtPhoneEmail);
         edtVerificationCode = findViewById(R.id.edtVerificationCode);
         edtNewPassword = findViewById(R.id.edtNewPassword);
         edtConfirmNewPassword = findViewById(R.id.edtConfirmNewPassword);
         btnSendCode = findViewById(R.id.btnSendCode);
+        btnVerifyOtp = findViewById(R.id.btnVerifyOtp);
         btnResetPassword = findViewById(R.id.btnResetPassword);
     }
 
     private void bindActions() {
         btnBack.setOnClickListener(v -> finish());
         btnSendCode.setOnClickListener(v -> requestForgotPassword());
+        btnVerifyOtp.setOnClickListener(v -> onVerifyOtpClicked());
         btnResetPassword.setOnClickListener(v -> verifyOtpAndResetPassword());
     }
 
@@ -96,11 +108,12 @@ public class ForgotPasswordActivity extends AppCompatActivity {
                 progressDialog.dismiss();
                 if (response.isSuccessful() && response.body() != null) {
                     userEmail = email; // Lưu email để dùng cho verify OTP
+                    cachedOtp = null;
                     Toast.makeText(ForgotPasswordActivity.this,
                             response.body().getMessage(),
                             Toast.LENGTH_SHORT).show();
                     // Hiển thị form nhập OTP
-                    showOtpForm();
+                    enableOtpInput();
                 } else {
                     Toast.makeText(ForgotPasswordActivity.this,
                             NetworkUtils.extractErrorMessage(response),
@@ -118,28 +131,43 @@ public class ForgotPasswordActivity extends AppCompatActivity {
         });
     }
 
-    private void showOtpForm() {
-        // Ẩn form nhập email
-        edtPhoneEmail.setVisibility(View.GONE);
-        btnSendCode.setVisibility(View.GONE);
-        
-        // Hiển thị form nhập OTP và mật khẩu mới
-        edtVerificationCode.setVisibility(View.VISIBLE);
-        edtNewPassword.setVisibility(View.VISIBLE);
-        edtConfirmNewPassword.setVisibility(View.VISIBLE);
-        btnResetPassword.setVisibility(View.VISIBLE);
-        
-        // Disable email field
+    private void enableOtpInput() {
+        edtVerificationCode.setEnabled(true);
+        btnVerifyOtp.setEnabled(true);
+        btnVerifyOtp.setAlpha(1f);
         edtPhoneEmail.setEnabled(false);
+        Toast.makeText(this, R.string.forgot_password_otp_sent, Toast.LENGTH_SHORT).show();
+    }
+
+    private void onVerifyOtpClicked() {
+        if (TextUtils.isEmpty(userEmail)) {
+            Toast.makeText(this, R.string.error_otp_not_requested, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String otp = edtVerificationCode.getText().toString().trim();
+        if (TextUtils.isEmpty(otp)) {
+            edtVerificationCode.setError(getString(R.string.error_otp_required));
+            return;
+        }
+
+        cachedOtp = otp;
+        showNewPasswordForm();
+    }
+
+    private void showNewPasswordForm() {
+        layoutOtpStep.setVisibility(View.GONE);
+        layoutNewPasswordStep.setVisibility(View.VISIBLE);
+        txtDescription.setText(R.string.forgot_password_step2_desc);
     }
 
     private void verifyOtpAndResetPassword() {
-        String otp = edtVerificationCode.getText().toString().trim();
+        String otp = !TextUtils.isEmpty(cachedOtp) ? cachedOtp : edtVerificationCode.getText().toString().trim();
         String newPassword = edtNewPassword.getText().toString().trim();
         String confirmPassword = edtConfirmNewPassword.getText().toString().trim();
 
         if (TextUtils.isEmpty(otp)) {
-            edtVerificationCode.setError("Vui lòng nhập mã xác nhận");
+            Toast.makeText(this, R.string.error_otp_required, Toast.LENGTH_SHORT).show();
             return;
         }
 

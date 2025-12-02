@@ -11,6 +11,9 @@
     <string name="logging_in">Đang đăng nhập...</string>
     <string name="registering">Đang đăng ký...</string>
     <string name="forgot_password_processing">Đang xử lý yêu cầu...</string>
+    <string name="forgot_password_step1_desc">Nhập SDT/Email và mã OTP được gửi để tiếp tục</string>
+    <string name="forgot_password_step2_desc">Nhập mật khẩu mới cho tài khoản của bạn</string>
+    <string name="forgot_password_otp_sent">Đã gửi mã OTP, vui lòng kiểm tra hộp thư</string>
 
     <!-- Validation errors -->
     <string name="error_email_required">Vui lòng nhập email hoặc số điện thoại</string>
@@ -18,5 +21,7 @@
     <string name="error_confirm_password">Vui lòng nhập lại mật khẩu</string>
     <string name="error_password_mismatch">Mật khẩu nhập lại không khớp</string>
     <string name="error_no_connection">Không có kết nối mạng, vui lòng thử lại</string>
+    <string name="error_otp_required">Vui lòng nhập mã OTP</string>
+    <string name="error_otp_not_requested">Vui lòng gửi mã OTP trước khi xác nhận</string>
     <string name="price_label">Giá: %1$s</string>
 </resources>
