@@ -39,21 +39,47 @@ public class LoginActivity extends AppCompatActivity {
     private boolean isPasswordVisible = false;
 
     @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Safely dismiss progress dialog
+        try {
+            if (progressDialog != null && progressDialog.isShowing()) {
+                progressDialog.dismiss();
+            }
+        } catch (Exception e) {
+            android.util.Log.e("LoginActivity", "Error in onDestroy", e);
+        }
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_login);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
+        
+        // Apply insets asynchronously to avoid blocking
+        View mainView = findViewById(R.id.main);
+        if (mainView != null) {
+            ViewCompat.setOnApplyWindowInsetsListener(mainView, (v, insets) -> {
+                Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+                v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+                return insets;
+            });
+        }
 
         sessionManager = new SessionManager(this);
         apiService = ApiClient.getApiService();
-        progressDialog = new ProgressDialog(this);
-        progressDialog.setMessage(getString(R.string.logging_in));
-        progressDialog.setCancelable(false);
+        
+        // Initialize ProgressDialog with proper configuration
+        try {
+            progressDialog = new ProgressDialog(this);
+            progressDialog.setMessage(getString(R.string.logging_in));
+            progressDialog.setCancelable(false);
+            progressDialog.setCanceledOnTouchOutside(false);
+        } catch (Exception e) {
+            // Fallback if ProgressDialog fails
+            android.util.Log.e("LoginActivity", "Error creating ProgressDialog", e);
+        }
 
         initViews();
         bindActions();
@@ -96,47 +122,92 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void attemptLogin() {
-        String email = edtPhoneEmail.getText().toString().trim();
-        String password = edtPassword.getText().toString().trim();
+        String email = edtPhoneEmail != null ? edtPhoneEmail.getText().toString().trim() : "";
+        String password = edtPassword != null ? edtPassword.getText().toString().trim() : "";
 
         if (TextUtils.isEmpty(email)) {
-            edtPhoneEmail.setError(getString(R.string.error_email_required));
+            if (edtPhoneEmail != null) {
+                edtPhoneEmail.setError(getString(R.string.error_email_required));
+            }
             return;
         }
 
         if (TextUtils.isEmpty(password)) {
-            edtPassword.setError(getString(R.string.error_password_required));
+            if (edtPassword != null) {
+                edtPassword.setError(getString(R.string.error_password_required));
+            }
             return;
         }
 
-        if (!NetworkUtils.isConnected(this)) {
-            Toast.makeText(this, R.string.error_no_connection, Toast.LENGTH_SHORT).show();
+        // Check network connection - non-blocking
+        try {
+            if (!NetworkUtils.isConnected(this)) {
+                Toast.makeText(this, R.string.error_no_connection, Toast.LENGTH_SHORT).show();
+                return;
+            }
+        } catch (Exception e) {
+            android.util.Log.e("LoginActivity", "Error checking network", e);
+            Toast.makeText(this, "Lỗi kiểm tra kết nối mạng", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        progressDialog.show();
+        // Show progress dialog safely
+        try {
+            if (progressDialog != null && !progressDialog.isShowing()) {
+                progressDialog.show();
+            }
+        } catch (Exception e) {
+            android.util.Log.e("LoginActivity", "Error showing progress dialog", e);
+        }
+
         LoginRequest request = new LoginRequest(email, password);
         apiService.login(request).enqueue(new Callback<AuthResponse>() {
             @Override
             public void onResponse(Call<AuthResponse> call, Response<AuthResponse> response) {
-                progressDialog.dismiss();
+                // Dismiss progress dialog safely
+                try {
+                    if (progressDialog != null && progressDialog.isShowing()) {
+                        progressDialog.dismiss();
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("LoginActivity", "Error dismissing progress dialog", e);
+                }
+
                 if (response.isSuccessful() && response.body() != null) {
-                    AuthResponse body = response.body();
-                    sessionManager.saveAuthSession(body.getToken(), body.getUser());
-                    Toast.makeText(LoginActivity.this, body.getMessage(), Toast.LENGTH_SHORT).show();
-                    Intent intent = new Intent(LoginActivity.this, AccountActivity.class);
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(intent);
-                    finish();
+                    try {
+                        AuthResponse body = response.body();
+                        sessionManager.saveAuthSession(body.getToken(), body.getUser());
+                        Toast.makeText(LoginActivity.this, body.getMessage(), Toast.LENGTH_SHORT).show();
+                        Intent intent = new Intent(LoginActivity.this, AccountActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(intent);
+                        finish();
+                    } catch (Exception e) {
+                        android.util.Log.e("LoginActivity", "Error processing login response", e);
+                        Toast.makeText(LoginActivity.this, "Lỗi xử lý đăng nhập", Toast.LENGTH_SHORT).show();
+                    }
                 } else {
-                    Toast.makeText(LoginActivity.this, NetworkUtils.extractErrorMessage(response), Toast.LENGTH_SHORT).show();
+                    String errorMsg = NetworkUtils.extractErrorMessage(response);
+                    Toast.makeText(LoginActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
             public void onFailure(Call<AuthResponse> call, Throwable t) {
-                progressDialog.dismiss();
-                Toast.makeText(LoginActivity.this, t.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
+                // Dismiss progress dialog safely
+                try {
+                    if (progressDialog != null && progressDialog.isShowing()) {
+                        progressDialog.dismiss();
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("LoginActivity", "Error dismissing progress dialog", e);
+                }
+
+                String errorMsg = t != null && t.getLocalizedMessage() != null 
+                    ? t.getLocalizedMessage() 
+                    : "Không thể kết nối đến server";
+                Toast.makeText(LoginActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                android.util.Log.e("LoginActivity", "Login failed", t);
             }
         });
     }

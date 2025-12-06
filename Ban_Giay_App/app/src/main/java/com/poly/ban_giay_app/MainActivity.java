@@ -14,6 +14,9 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
@@ -56,6 +59,7 @@ public class MainActivity extends AppCompatActivity {
     private Handler searchHandler = new Handler(Looper.getMainLooper());
     private Runnable searchRunnable;
     private ApiService apiService;
+    private ExecutorService searchExecutor = Executors.newSingleThreadExecutor();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -91,6 +95,15 @@ public class MainActivity extends AppCompatActivity {
 
         // Setup bottom navigation
         setupBottomNavigation();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Shutdown executor to prevent memory leaks
+        if (searchExecutor != null && !searchExecutor.isShutdown()) {
+            searchExecutor.shutdown();
+        }
     }
 
     @Override
@@ -196,11 +209,22 @@ public class MainActivity extends AppCompatActivity {
                                     }
                                 }
                             }
-                            runOnUiThread(() -> {
-                                topProductAdapter.notifyDataSetChanged();
-                                updateAllProductList();
-                                Log.d("MainActivity", "Top products updated: " + topProductList.size());
-                            });
+                            // Process product conversion on background thread if list is large
+                            if (topProductList.size() > 50) {
+                                new Thread(() -> {
+                                    updateAllProductList();
+                                    runOnUiThread(() -> {
+                                        topProductAdapter.notifyDataSetChanged();
+                                        Log.d("MainActivity", "Top products updated: " + topProductList.size());
+                                    });
+                                }).start();
+                            } else {
+                                runOnUiThread(() -> {
+                                    updateAllProductList();
+                                    topProductAdapter.notifyDataSetChanged();
+                                    Log.d("MainActivity", "Top products updated: " + topProductList.size());
+                                });
+                            }
                         } else {
                             Log.w("MainActivity", "Top products list is empty or null");
                             runOnUiThread(() -> {
@@ -272,11 +296,22 @@ public class MainActivity extends AppCompatActivity {
                                     }
                                 }
                             }
-                            runOnUiThread(() -> {
-                                menProductAdapter.notifyDataSetChanged();
-                                updateAllProductList();
-                                Log.d("MainActivity", "Men products updated: " + menProductList.size());
-                            });
+                            // Process product conversion on background thread if list is large
+                            if (menProductList.size() > 50) {
+                                new Thread(() -> {
+                                    updateAllProductList();
+                                    runOnUiThread(() -> {
+                                        menProductAdapter.notifyDataSetChanged();
+                                        Log.d("MainActivity", "Men products updated: " + menProductList.size());
+                                    });
+                                }).start();
+                            } else {
+                                runOnUiThread(() -> {
+                                    updateAllProductList();
+                                    menProductAdapter.notifyDataSetChanged();
+                                    Log.d("MainActivity", "Men products updated: " + menProductList.size());
+                                });
+                            }
                         } else {
                             Log.w("MainActivity", "Men products list is empty or null");
                             runOnUiThread(() -> {
@@ -325,9 +360,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateAllProductList() {
-        allProductList.clear();
-        allProductList.addAll(topProductList);
-        allProductList.addAll(menProductList);
+        synchronized (allProductList) {
+            allProductList.clear();
+            allProductList.addAll(topProductList);
+            allProductList.addAll(menProductList);
+        }
     }
 
     /**
@@ -463,66 +500,102 @@ public class MainActivity extends AppCompatActivity {
     }
     
     private void performSearch(String query) {
-        searchResultList.clear();
-        
-        // Normalize query for Vietnamese search (bỏ dấu để tìm kiếm linh hoạt hơn)
-        String normalizedQuery = normalizeVietnamese(query.toLowerCase());
-        
-        // Filter products by name - tìm kiếm cả với dấu và không dấu
-        for (Product product : allProductList) {
-            String productName = product.name.toLowerCase();
-            String normalizedProductName = normalizeVietnamese(productName);
+        // Perform search on background thread to avoid blocking UI
+        searchExecutor.execute(() -> {
+            List<Product> results = new ArrayList<>();
             
-            // Tìm kiếm cả text gốc và text đã normalize
-            if (productName.contains(query.toLowerCase()) || 
-                normalizedProductName.contains(normalizedQuery) ||
-                productName.contains(normalizedQuery) ||
-                normalizedProductName.contains(query.toLowerCase())) {
-                searchResultList.add(product);
+            // Normalize query for Vietnamese search (bỏ dấu để tìm kiếm linh hoạt hơn)
+            String normalizedQuery = normalizeVietnamese(query.toLowerCase());
+            String queryLower = query.toLowerCase();
+            
+            // Create a thread-safe copy of allProductList to avoid concurrent modification
+            List<Product> productsToSearch;
+            synchronized (allProductList) {
+                productsToSearch = new ArrayList<>(allProductList);
             }
-        }
-        
-        // Update UI
-        if (searchResultList.isEmpty()) {
-            txtSearchTitle.setText("Không tìm thấy sản phẩm");
-        } else {
-            txtSearchTitle.setText("Kết quả tìm kiếm (" + searchResultList.size() + ")");
-        }
-        
-        searchAdapter.notifyDataSetChanged();
-        showSearchLayout();
+            
+            // Filter products by name - tìm kiếm cả với dấu và không dấu
+            for (Product product : productsToSearch) {
+                if (product == null || product.name == null) continue;
+                
+                String productName = product.name.toLowerCase();
+                String normalizedProductName = normalizeVietnamese(productName);
+                
+                // Tìm kiếm cả text gốc và text đã normalize
+                if (productName.contains(queryLower) || 
+                    normalizedProductName.contains(normalizedQuery) ||
+                    productName.contains(normalizedQuery) ||
+                    normalizedProductName.contains(queryLower)) {
+                    results.add(product);
+                }
+            }
+            
+            // Update UI on main thread
+            runOnUiThread(() -> {
+                searchResultList.clear();
+                searchResultList.addAll(results);
+                
+                // Update UI
+                if (searchResultList.isEmpty()) {
+                    txtSearchTitle.setText("Không tìm thấy sản phẩm");
+                } else {
+                    txtSearchTitle.setText("Kết quả tìm kiếm (" + searchResultList.size() + ")");
+                }
+                
+                searchAdapter.notifyDataSetChanged();
+                showSearchLayout();
+            });
+        });
     }
     
     // Normalize Vietnamese text for better search (remove accents)
+    // Optimized version using StringBuilder for better performance
     private String normalizeVietnamese(String text) {
-        if (text == null) return "";
-        return text
-            .replace("à", "a").replace("á", "a").replace("ạ", "a").replace("ả", "a").replace("ã", "a")
-            .replace("ă", "a").replace("ằ", "a").replace("ắ", "a").replace("ặ", "a").replace("ẳ", "a").replace("ẵ", "a")
-            .replace("â", "a").replace("ầ", "a").replace("ấ", "a").replace("ậ", "a").replace("ẩ", "a").replace("ẫ", "a")
-            .replace("è", "e").replace("é", "e").replace("ẹ", "e").replace("ẻ", "e").replace("ẽ", "e")
-            .replace("ê", "e").replace("ề", "e").replace("ế", "e").replace("ệ", "e").replace("ể", "e").replace("ễ", "e")
-            .replace("ì", "i").replace("í", "i").replace("ị", "i").replace("ỉ", "i").replace("ĩ", "i")
-            .replace("ò", "o").replace("ó", "o").replace("ọ", "o").replace("ỏ", "o").replace("õ", "o")
-            .replace("ô", "o").replace("ồ", "o").replace("ố", "o").replace("ộ", "o").replace("ổ", "o").replace("ỗ", "o")
-            .replace("ơ", "o").replace("ờ", "o").replace("ớ", "o").replace("ợ", "o").replace("ở", "o").replace("ỡ", "o")
-            .replace("ù", "u").replace("ú", "u").replace("ụ", "u").replace("ủ", "u").replace("ũ", "u")
-            .replace("ư", "u").replace("ừ", "u").replace("ứ", "u").replace("ự", "u").replace("ử", "u").replace("ữ", "u")
-            .replace("ỳ", "y").replace("ý", "y").replace("ỵ", "y").replace("ỷ", "y").replace("ỹ", "y")
-            .replace("đ", "d")
-            .replace("À", "A").replace("Á", "A").replace("Ạ", "A").replace("Ả", "A").replace("Ã", "A")
-            .replace("Ă", "A").replace("Ằ", "A").replace("Ắ", "A").replace("Ặ", "A").replace("Ẳ", "A").replace("Ẵ", "A")
-            .replace("Â", "A").replace("Ầ", "A").replace("Ấ", "A").replace("Ậ", "A").replace("Ẩ", "A").replace("Ẫ", "A")
-            .replace("È", "E").replace("É", "E").replace("Ẹ", "E").replace("Ẻ", "E").replace("Ẽ", "E")
-            .replace("Ê", "E").replace("Ề", "E").replace("Ế", "E").replace("Ệ", "E").replace("Ể", "E").replace("Ễ", "E")
-            .replace("Ì", "I").replace("Í", "I").replace("Ị", "I").replace("Ỉ", "I").replace("Ĩ", "I")
-            .replace("Ò", "O").replace("Ó", "O").replace("Ọ", "O").replace("Ỏ", "O").replace("Õ", "O")
-            .replace("Ô", "O").replace("Ồ", "O").replace("Ố", "O").replace("Ộ", "O").replace("Ổ", "O").replace("Ỗ", "O")
-            .replace("Ơ", "O").replace("Ờ", "O").replace("Ớ", "O").replace("Ợ", "O").replace("Ở", "O").replace("Ỡ", "O")
-            .replace("Ù", "U").replace("Ú", "U").replace("Ụ", "U").replace("Ủ", "U").replace("Ũ", "U")
-            .replace("Ư", "U").replace("Ừ", "U").replace("Ứ", "U").replace("Ự", "U").replace("Ử", "U").replace("Ữ", "U")
-            .replace("Ỳ", "Y").replace("Ý", "Y").replace("Ỵ", "Y").replace("Ỷ", "Y").replace("Ỹ", "Y")
-            .replace("Đ", "D");
+        if (text == null || text.isEmpty()) return "";
+        
+        StringBuilder sb = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            switch (c) {
+                // Lowercase
+                case 'à': case 'á': case 'ạ': case 'ả': case 'ã': case 'ă': case 'ằ': case 'ắ': case 'ặ': case 'ẳ': case 'ẵ':
+                case 'â': case 'ầ': case 'ấ': case 'ậ': case 'ẩ': case 'ẫ':
+                    sb.append('a'); break;
+                case 'è': case 'é': case 'ẹ': case 'ẻ': case 'ẽ': case 'ê': case 'ề': case 'ế': case 'ệ': case 'ể': case 'ễ':
+                    sb.append('e'); break;
+                case 'ì': case 'í': case 'ị': case 'ỉ': case 'ĩ':
+                    sb.append('i'); break;
+                case 'ò': case 'ó': case 'ọ': case 'ỏ': case 'õ': case 'ô': case 'ồ': case 'ố': case 'ộ': case 'ổ': case 'ỗ':
+                case 'ơ': case 'ờ': case 'ớ': case 'ợ': case 'ở': case 'ỡ':
+                    sb.append('o'); break;
+                case 'ù': case 'ú': case 'ụ': case 'ủ': case 'ũ': case 'ư': case 'ừ': case 'ứ': case 'ự': case 'ử': case 'ữ':
+                    sb.append('u'); break;
+                case 'ỳ': case 'ý': case 'ỵ': case 'ỷ': case 'ỹ':
+                    sb.append('y'); break;
+                case 'đ':
+                    sb.append('d'); break;
+                // Uppercase
+                case 'À': case 'Á': case 'Ạ': case 'Ả': case 'Ã': case 'Ă': case 'Ằ': case 'Ắ': case 'Ặ': case 'Ẳ': case 'Ẵ':
+                case 'Â': case 'Ầ': case 'Ấ': case 'Ậ': case 'Ẩ': case 'Ẫ':
+                    sb.append('A'); break;
+                case 'È': case 'É': case 'Ẹ': case 'Ẻ': case 'Ẽ': case 'Ê': case 'Ề': case 'Ế': case 'Ệ': case 'Ể': case 'Ễ':
+                    sb.append('E'); break;
+                case 'Ì': case 'Í': case 'Ị': case 'Ỉ': case 'Ĩ':
+                    sb.append('I'); break;
+                case 'Ò': case 'Ó': case 'Ọ': case 'Ỏ': case 'Õ': case 'Ô': case 'Ồ': case 'Ố': case 'Ộ': case 'Ổ': case 'Ỗ':
+                case 'Ơ': case 'Ờ': case 'Ớ': case 'Ợ': case 'Ở': case 'Ỡ':
+                    sb.append('O'); break;
+                case 'Ù': case 'Ú': case 'Ụ': case 'Ủ': case 'Ũ': case 'Ư': case 'Ừ': case 'Ứ': case 'Ự': case 'Ử': case 'Ữ':
+                    sb.append('U'); break;
+                case 'Ỳ': case 'Ý': case 'Ỵ': case 'Ỷ': case 'Ỹ':
+                    sb.append('Y'); break;
+                case 'Đ':
+                    sb.append('D'); break;
+                default:
+                    sb.append(c); break;
+            }
+        }
+        return sb.toString();
     }
     
     private void showSearchLayout() {
