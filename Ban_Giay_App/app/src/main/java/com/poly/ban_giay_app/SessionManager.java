@@ -62,6 +62,10 @@ public class SessionManager {
         return sharedPreferences.getString(KEY_EMAIL, "");
     }
 
+    public String getUserId() {
+        return sharedPreferences.getString(KEY_USER_ID, "");
+    }
+
     public void logout() {
         sharedPreferences.edit()
                 .clear()

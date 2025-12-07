@@ -92,12 +92,14 @@ public class ProductDetailActivity extends AppCompatActivity {
             if (quantity > 1) {
                 quantity--;
                 txtQuantity.setText(String.valueOf(quantity));
+                updatePrice();
             }
         });
 
         btnIncrease.setOnClickListener(v -> {
             quantity++;
             txtQuantity.setText(String.valueOf(quantity));
+            updatePrice();
         });
 
         // Add to cart
@@ -122,8 +124,12 @@ public class ProductDetailActivity extends AppCompatActivity {
                 Toast.makeText(this, "Vui lòng chọn kích thước", Toast.LENGTH_SHORT).show();
                 return;
             }
-            // TODO: Buy now logic
-            Toast.makeText(this, "Đang chuyển đến trang thanh toán...", Toast.LENGTH_SHORT).show();
+            // Navigate to payment method selection
+            Intent intent = new Intent(ProductDetailActivity.this, PaymentMethodActivity.class);
+            intent.putExtra("product", product);
+            intent.putExtra("quantity", quantity);
+            intent.putExtra("selectedSize", selectedSize);
+            startActivity(intent);
         });
     }
 
@@ -200,17 +206,67 @@ public class ProductDetailActivity extends AppCompatActivity {
         // Rating (5 stars)
         txtRating.setText("★★★★★");
         
-        // Price
-        String priceOldText = "Giá gốc: " + product.priceOld;
+        // Quantity
+        txtQuantity.setText(String.valueOf(quantity));
+        
+        // Price (will be updated based on quantity)
+        updatePrice();
+    }
+    
+    /**
+     * Cập nhật giá hiển thị dựa trên số lượng
+     */
+    private void updatePrice() {
+        // Parse giá từ string (loại bỏ ký tự ₫, dấu chấm, dấu phẩy)
+        long priceOldValue = parsePrice(product.priceOld);
+        long priceNewValue = parsePrice(product.priceNew);
+        
+        // Nhân với số lượng
+        long totalPriceOld = priceOldValue * quantity;
+        long totalPriceNew = priceNewValue * quantity;
+        
+        // Format lại giá với ký tự ₫
+        String formattedPriceOld = formatPrice(totalPriceOld);
+        String formattedPriceNew = formatPrice(totalPriceNew);
+        
+        // Hiển thị giá cũ (có gạch ngang)
+        String priceOldText = "Giá gốc: " + formattedPriceOld;
         SpannableString ss = new SpannableString(priceOldText);
-        int startIndex = priceOldText.indexOf(product.priceOld);
+        int startIndex = priceOldText.indexOf(formattedPriceOld);
         ss.setSpan(new StrikethroughSpan(), startIndex, priceOldText.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         txtPriceOld.setText(ss);
         
-        txtPriceNew.setText("Giá khuyến mãi: " + product.priceNew);
-        
-        // Quantity
-        txtQuantity.setText(String.valueOf(quantity));
+        // Hiển thị giá mới
+        txtPriceNew.setText("Giá khuyến mãi: " + formattedPriceNew);
+    }
+    
+    /**
+     * Parse giá từ string (ví dụ: "500.000₫" -> 500000)
+     */
+    private long parsePrice(String priceString) {
+        if (priceString == null || priceString.isEmpty()) {
+            return 0;
+        }
+        // Loại bỏ ký tự ₫, dấu chấm, dấu phẩy, khoảng trắng
+        String cleaned = priceString.replace("₫", "")
+                                    .replace(".", "")
+                                    .replace(",", "")
+                                    .replace(" ", "")
+                                    .trim();
+        try {
+            return Long.parseLong(cleaned);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+    
+    /**
+     * Format giá với ký tự ₫ (ví dụ: 500000 -> "500.000₫")
+     */
+    private String formatPrice(long price) {
+        // Format với dấu chấm ngăn cách hàng nghìn
+        String formatted = String.format("%,d", price).replace(",", ".");
+        return formatted + "₫";
     }
     
     /**

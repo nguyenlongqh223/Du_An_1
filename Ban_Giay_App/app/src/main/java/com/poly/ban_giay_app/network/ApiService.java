@@ -7,6 +7,7 @@ import com.poly.ban_giay_app.network.model.ProductResponse;
 import com.poly.ban_giay_app.network.model.UserResponse;
 import com.poly.ban_giay_app.network.request.ForgotPasswordRequest;
 import com.poly.ban_giay_app.network.request.LoginRequest;
+import com.poly.ban_giay_app.network.request.PaymentRequest;
 import com.poly.ban_giay_app.network.request.ProductRequest;
 import com.poly.ban_giay_app.network.request.RegisterRequest;
 import com.poly.ban_giay_app.network.request.StockUpdateRequest;
@@ -114,4 +115,10 @@ public interface ApiService {
     // Lấy tất cả sản phẩm (legacy)
     @GET("products")
     Call<BaseResponse<List<ProductResponse>>> getAllProducts();
+
+    // ==================== PAYMENT APIs ====================
+    // POST http://YOUR_IP:3000/api/payment
+    // Tạo payment mới
+    @POST("payment")
+    Call<BaseResponse<Object>> createPayment(@Body PaymentRequest request);
 }

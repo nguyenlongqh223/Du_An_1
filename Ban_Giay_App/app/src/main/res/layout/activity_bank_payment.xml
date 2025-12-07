@@ -1,0 +1,369 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF">
+
+    <!-- Content -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:clipToPadding="false"
+        android:paddingBottom="200dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Back button -->
+            <LinearLayout
+                android:id="@+id/btnBack"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground"
+                android:padding="8dp"
+                android:layout_marginBottom="16dp">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_back"
+                    app:tint="#888888"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Quay lại"
+                    android:textSize="16sp"
+                    android:textColor="#888888" />
+            </LinearLayout>
+
+            <!-- Title -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Thanh toán ngân hàng"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="#006C67"
+                android:gravity="center"
+                android:layout_marginBottom="32dp" />
+
+            <!-- QR Code Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Quét mã QR để thanh toán"
+                android:textSize="16sp"
+                android:textColor="#212121"
+                android:gravity="center"
+                android:layout_marginBottom="16dp" />
+
+            <ImageView
+                android:id="@+id/imgQRCode"
+                android:layout_width="280dp"
+                android:layout_height="280dp"
+                android:layout_gravity="center_horizontal"
+                android:background="#FFFFFF"
+                android:scaleType="fitCenter"
+                android:layout_marginBottom="32dp"
+                android:contentDescription="QR Code" />
+
+            <!-- Bank Transfer Information -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Thông tin chuyển khoản"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#212121"
+                android:layout_marginBottom="16dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_payment_method"
+                android:padding="16dp"
+                android:layout_marginBottom="16dp">
+
+                <!-- Bank Name -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="12dp">
+
+                    <TextView
+                        android:layout_width="120dp"
+                        android:layout_height="wrap_content"
+                        android:text="Ngân hàng:"
+                        android:textSize="15sp"
+                        android:textColor="#888888" />
+
+                    <TextView
+                        android:id="@+id/txtBankName"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Vietcombank"
+                        android:textSize="15sp"
+                        android:textColor="#212121"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Account Name -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="12dp">
+
+                    <TextView
+                        android:layout_width="120dp"
+                        android:layout_height="wrap_content"
+                        android:text="Tên tài khoản:"
+                        android:textSize="15sp"
+                        android:textColor="#888888" />
+
+                    <TextView
+                        android:id="@+id/txtAccountName"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="CÔNG TY TNHH SNEAKER UNIVERSE"
+                        android:textSize="15sp"
+                        android:textColor="#212121"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Account Number -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="12dp">
+
+                    <TextView
+                        android:layout_width="120dp"
+                        android:layout_height="wrap_content"
+                        android:text="Số tài khoản:"
+                        android:textSize="15sp"
+                        android:textColor="#888888" />
+
+                    <TextView
+                        android:id="@+id/txtAccountNumber"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="1234567890"
+                        android:textSize="15sp"
+                        android:textColor="#212121"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Amount -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="120dp"
+                        android:layout_height="wrap_content"
+                        android:text="Số tiền:"
+                        android:textSize="15sp"
+                        android:textColor="#888888" />
+
+                    <TextView
+                        android:id="@+id/txtAmount"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="1.200.000₫"
+                        android:textSize="15sp"
+                        android:textColor="#E53935"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Copy Account Number Button -->
+            <Button
+                android:id="@+id/btnCopyAccountNumber"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Sao chép số tài khoản"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#4CAF50"
+                android:elevation="2dp" />
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Bottom nav -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal"
+        android:background="#F5F5F5"
+        android:weightSum="5"
+        android:elevation="8dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="4dp"
+        android:gravity="center">
+
+        <!-- Trang chủ -->
+        <LinearLayout
+            android:id="@+id/navHome"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:padding="4dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                app:tint="#424242"
+                android:src="@drawable/ic_home"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Trang chủ"
+                android:textSize="11sp"
+                android:textColor="#424242"
+                android:layout_marginTop="2dp"/>
+        </LinearLayout>
+
+        <!-- Danh mục -->
+        <LinearLayout
+            android:id="@+id/navCategories"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:padding="4dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                app:tint="#424242"
+                android:src="@drawable/ic_menu"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Danh mục"
+                android:textSize="11sp"
+                android:textColor="#424242"
+                android:layout_marginTop="2dp"/>
+        </LinearLayout>
+
+        <!-- Giỏ hàng -->
+        <LinearLayout
+            android:id="@+id/navCart"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:padding="4dp">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                app:tint="#424242"
+                android:src="@drawable/ic_cart"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Giỏ hàng"
+                android:textSize="11sp"
+                android:textColor="#424242"
+                android:layout_marginTop="2dp"/>
+        </LinearLayout>
+
+        <!-- Trợ giúp -->
+        <LinearLayout
+            android:id="@+id/navHelp"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:padding="4dp">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                app:tint="#424242"
+                android:src="@drawable/ic_help"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Trợ giúp"
+                android:textSize="11sp"
+                android:textColor="#424242"
+                android:layout_marginTop="2dp"/>
+        </LinearLayout>
+
+        <!-- Tài khoản -->
+        <LinearLayout
+            android:id="@+id/navAccount"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:padding="4dp">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                app:tint="#424242"
+                android:src="@drawable/ic_user"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tài khoản"
+                android:textSize="11sp"
+                android:textColor="#424242"
+                android:layout_marginTop="2dp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+</RelativeLayout>
+

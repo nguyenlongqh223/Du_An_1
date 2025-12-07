@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF">
+
+    <!-- Content -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:clipToPadding="false"
+        android:paddingBottom="200dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Back button -->
+            <ImageView
+                android:id="@+id/btnBack"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_back"
+                android:padding="4dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground"
+                app:tint="#888888"
+                android:layout_marginBottom="24dp" />
+
+            <!-- Title -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Hình thức thanh toán"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="#006C67"
+                android:gravity="center"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Product Info -->
+            <TextView
+                android:id="@+id/txtProductInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Giày Converse Chuck Taylor All Star • 1.200.000₫"
+                android:textSize="15sp"
+                android:textColor="#888888"
+                android:gravity="start"
+                android:layout_marginBottom="32dp"
+                android:paddingStart="4dp" />
+
+            <!-- Payment Methods -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="8dp">
+
+                <!-- Credit Card -->
+                <LinearLayout
+                    android:id="@+id/paymentCreditCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="20dp"
+                    android:layout_marginBottom="16dp"
+                    android:background="@drawable/bg_payment_method"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:elevation="1dp"
+                    android:foreground="?attr/selectableItemBackground">
+
+                    <ImageView
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:src="@drawable/ic_credit_card"
+                        app:tint="#424242"
+                        android:layout_marginEnd="20dp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Thẻ tín dụng"
+                        android:textSize="17sp"
+                        android:textColor="#212121"
+                        android:textStyle="normal" />
+                </LinearLayout>
+
+                <!-- ATM Card -->
+                <LinearLayout
+                    android:id="@+id/paymentATM"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="20dp"
+                    android:layout_marginBottom="16dp"
+                    android:background="@drawable/bg_payment_method"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:elevation="1dp"
+                    android:foreground="?attr/selectableItemBackground">
+
+                    <ImageView
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:src="@drawable/ic_atm_card"
+                        app:tint="#424242"
+                        android:layout_marginEnd="20dp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Thẻ ATM"
+                        android:textSize="17sp"
+                        android:textColor="#212121"
+                        android:textStyle="normal" />
+                </LinearLayout>
+
+                <!-- Cash on Delivery -->
+                <LinearLayout
+                    android:id="@+id/paymentCOD"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="20dp"
+                    android:background="@drawable/bg_payment_method"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:elevation="1dp"
+                    android:foreground="?attr/selectableItemBackground">
+
+                    <ImageView
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:src="@drawable/ic_cash"
+                        app:tint="#424242"
+                        android:layout_marginEnd="20dp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Thanh toán khi nhận hàng"
+                        android:textSize="17sp"
+                        android:textColor="#212121"
+                        android:textStyle="normal" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Bottom nav -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal"
+        android:background="#F5F5F5"
+        android:weightSum="5"
+        android:elevation="8dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="4dp"
+        android:gravity="center">
+
+        <!-- Trang chủ -->
+        <LinearLayout
+            android:id="@+id/navHome"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:padding="4dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                app:tint="#424242"
+                android:src="@drawable/ic_home"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Trang chủ"
+                android:textSize="11sp"
+                android:textColor="#424242"
+                android:layout_marginTop="2dp"/>
+        </LinearLayout>
+
+        <!-- Danh mục -->
+        <LinearLayout
+            android:id="@+id/navCategories"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:padding="4dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                app:tint="#424242"
+                android:src="@drawable/ic_menu"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Danh mục"
+                android:textSize="11sp"
+                android:textColor="#424242"
+                android:layout_marginTop="2dp"/>
+        </LinearLayout>
+
+        <!-- Giỏ hàng -->
+        <LinearLayout
+            android:id="@+id/navCart"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:padding="4dp">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                app:tint="#424242"
+                android:src="@drawable/ic_cart"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Giỏ hàng"
+                android:textSize="11sp"
+                android:textColor="#424242"
+                android:layout_marginTop="2dp"/>
+        </LinearLayout>
+
+        <!-- Trợ giúp -->
+        <LinearLayout
+            android:id="@+id/navHelp"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:padding="4dp">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                app:tint="#424242"
+                android:src="@drawable/ic_help"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Trợ giúp"
+                android:textSize="11sp"
+                android:textColor="#424242"
+                android:layout_marginTop="2dp"/>
+        </LinearLayout>
+
+        <!-- Tài khoản -->
+        <LinearLayout
+            android:id="@+id/navAccount"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:padding="4dp">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                app:tint="#424242"
+                android:src="@drawable/ic_user"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tài khoản"
+                android:textSize="11sp"
+                android:textColor="#424242"
+                android:layout_marginTop="2dp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+</RelativeLayout>
+

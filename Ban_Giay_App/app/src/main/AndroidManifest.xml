@@ -46,6 +46,18 @@
         <activity
             android:name=".CategoriesActivity"
             android:exported="false" />
+        <activity
+            android:name=".PaymentMethodActivity"
+            android:exported="false" />
+        <activity
+            android:name=".CreditCardActivity"
+            android:exported="false" />
+        <activity
+            android:name=".AtmCardActivity"
+            android:exported="false" />
+        <activity
+            android:name=".BankPaymentActivity"
+            android:exported="false" />
     </application>
 
 </manifest>
