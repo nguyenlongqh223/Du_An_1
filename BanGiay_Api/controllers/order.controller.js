@@ -46,9 +46,61 @@ exports.createOrder = async (req, res) => {
     });
 
     await newOrder.save();
+    console.log("✅ Order created successfully! Order ID:", newOrder._id);
 
-    // Xóa giỏ hàng sau khi tạo đơn hàng thành công
-    await Cart.findOneAndDelete({ user_id });
+    // Xóa các items đã thanh toán khỏi giỏ hàng (không xóa toàn bộ cart)
+    const mongoose = require("mongoose");
+    const userIdObjectId = mongoose.Types.ObjectId.isValid(user_id) ? new mongoose.Types.ObjectId(user_id) : user_id;
+    const cart = await Cart.findOne({ user_id: userIdObjectId });
+    
+    if (cart && cart.items && cart.items.length > 0) {
+      console.log("Cart before removing items:", cart.items.length);
+      
+      // Tạo map để đếm số lượng items cần xóa cho mỗi product_id + size
+      const itemsToRemove = new Map();
+      items.forEach(orderItem => {
+        const key = `${orderItem.san_pham_id}_${orderItem.kich_thuoc}`;
+        const currentCount = itemsToRemove.get(key) || 0;
+        itemsToRemove.set(key, currentCount + orderItem.so_luong);
+      });
+      
+      console.log("Items to remove map:", Array.from(itemsToRemove.entries()));
+      
+      // Xóa items theo thứ tự, đảm bảo xóa đúng số lượng
+      const itemsToKeep = [];
+      const removalCount = new Map();
+      
+      cart.items.forEach(cartItem => {
+        const key = `${cartItem.san_pham_id.toString()}_${cartItem.kich_thuoc}`;
+        const needToRemove = itemsToRemove.get(key) || 0;
+        const alreadyRemoved = removalCount.get(key) || 0;
+        
+        if (needToRemove > 0 && alreadyRemoved < needToRemove) {
+          // Cần xóa item này
+          removalCount.set(key, alreadyRemoved + 1);
+          console.log(`Removing item: product=${cartItem.san_pham_id}, size=${cartItem.kich_thuoc}`);
+        } else {
+          // Giữ lại item này
+          itemsToKeep.push(cartItem);
+        }
+      });
+      
+      const removedCount = cart.items.length - itemsToKeep.length;
+      console.log(`Removed ${removedCount} items from cart. Remaining: ${itemsToKeep.length}`);
+      
+      cart.items = itemsToKeep;
+      
+      if (cart.items.length > 0) {
+        await cart.save();
+        console.log("✅ Cart updated, remaining items:", cart.items.length);
+      } else {
+        // Nếu cart rỗng, xóa cart
+        await Cart.findByIdAndDelete(cart._id);
+        console.log("✅ Cart deleted (empty after checkout)");
+      }
+    } else {
+      console.log("⚠️ Cart not found or empty, nothing to remove");
+    }
 
     res.status(201).json({
       success: true,
@@ -64,27 +116,24 @@ exports.createOrder = async (req, res) => {
   }
 };
 
-// Lấy danh sách đơn hàng của user
+// Lấy danh sách đơn hàng của user (hoặc tất cả nếu không có user_id - cho admin)
 exports.getOrders = async (req, res) => {
   try {
     const { user_id, trang_thai } = req.query;
 
-    if (!user_id) {
-      return res.status(400).json({
-        success: false,
-        message: "Thiếu user_id",
-      });
-    }
-
     // Xây dựng query
-    const query = { user_id };
+    const query = {};
+    if (user_id) {
+      query.user_id = user_id;
+    }
     if (trang_thai) {
       query.trang_thai = trang_thai;
     }
 
     const orders = await Order.find(query)
       .sort({ createdAt: -1 }) // Mới nhất trước
-      .populate("items.san_pham_id", "ten_san_pham hinh_anh");
+      .populate("items.san_pham_id", "ten_san_pham hinh_anh")
+      .populate("user_id", "ho_ten email so_dien_thoai");
 
     res.json({
       success: true,
