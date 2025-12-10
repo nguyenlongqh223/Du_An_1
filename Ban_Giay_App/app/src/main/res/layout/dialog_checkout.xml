@@ -96,7 +96,7 @@
             android:layout_height="wrap_content"
             android:text="Xác nhận"
             android:textColor="@android:color/white"
-            android:background="#4CAF50"
+            android:backgroundTint="#FF5722"
             android:padding="12dp"
             android:paddingStart="24dp"
             android:paddingEnd="24dp" />

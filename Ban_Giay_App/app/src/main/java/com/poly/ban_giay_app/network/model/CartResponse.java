@@ -30,6 +30,9 @@ public class CartResponse {
      * Model cho từng item trong giỏ hàng
      */
     public static class CartItemResponse {
+        @SerializedName("_id")
+        private String id;
+
         // Khi chưa populate: san_pham_id là string ID
         // Khi đã populate: san_pham_id là object Product (sẽ được deserialize thành Map)
         // Gson sẽ deserialize object thành Map<String, Object>
@@ -96,6 +99,14 @@ public class CartResponse {
 
         public void setGia(Integer gia) {
             this.gia = gia;
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        public void setId(String id) {
+            this.id = id;
         }
 
         // Getter cho product khi được populate

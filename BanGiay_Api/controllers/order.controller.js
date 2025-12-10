@@ -384,30 +384,26 @@ exports.updateOrderStatus = async (req, res) => {
       cancelled: "Đã hủy",
     };
 
-    const tieuDe = "Cập nhật trạng thái đơn hàng";
-    const noiDung = `Đơn hàng #${orderId.slice(-8).toUpperCase()} của bạn đã được cập nhật từ "${statusMessages[oldStatus] || oldStatus}" sang "${statusMessages[trang_thai] || trang_thai}".`;
+    const statusText = statusMessages[trang_thai] || trang_thai;
+    const title = "Cập nhật đơn hàng";
+    const message = `ĐƠN HÀNG CỦA BẠN ĐÃ ĐƯỢC ${statusText.toUpperCase()}`;
 
     try {
-      // Đảm bảo user_id là ObjectId
+      // Đảm bảo user_id là ObjectId hoặc string hợp lệ
       let userId = order.user_id;
-      if (userId && typeof userId === 'object' && userId._id) {
+      if (userId && typeof userId === "object" && userId._id) {
         userId = userId._id;
-      } else if (userId && typeof userId === 'object') {
+      } else if (userId && typeof userId === "object") {
         userId = userId.toString();
       }
-      
+
       const notification = new Notification({
         user_id: userId,
-        loai: "order_status",
-        tieu_de: tieuDe,
-        noi_dung: noiDung,
-        duong_dan: `/order/${orderId}`,
-        metadata: {
-          order_id: orderId,
-          old_status: oldStatus,
-          new_status: trang_thai,
-        },
-        da_doc: false,
+        title,
+        message,
+        type: "order",
+        link: `/order/${orderId}`,
+        is_read: false,
       });
       await notification.save();
       console.log("✅ Notification created for order status update:", {

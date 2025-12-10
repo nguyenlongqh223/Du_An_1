@@ -147,7 +147,7 @@
             android:textColor="#FFFFFF"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:background="#000000" />
+            android:backgroundTint="#FF5722" />
 
     </LinearLayout>
 

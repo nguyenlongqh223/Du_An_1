@@ -365,6 +365,95 @@ public class CartManager {
         }
     }
 
+    /**
+     * Xóa item khỏi giỏ hàng trên server (nếu đã đăng nhập)
+     */
+    public void removeItemFromServer(CartItem item, CartCallback callback) {
+        try {
+            if (item == null || item.product == null) {
+                if (callback != null) {
+                    callback.onError("Sản phẩm không hợp lệ");
+                }
+                return;
+            }
+
+            if (context == null) {
+                if (callback != null) {
+                    callback.onError("Không thể xóa trên server: context chưa được khởi tạo");
+                }
+                return;
+            }
+
+            SessionManager sessionManager = new SessionManager(context);
+            if (!sessionManager.isLoggedIn()) {
+                // Người dùng chưa đăng nhập, chỉ xóa local
+                if (callback != null) {
+                    callback.onSuccess("Đã xóa khỏi giỏ hàng (cục bộ)");
+                }
+                return;
+            }
+
+            String userId = sessionManager.getUserId();
+            if (userId == null || userId.isEmpty()) {
+                if (callback != null) {
+                    callback.onError("Không tìm thấy thông tin người dùng");
+                }
+                return;
+            }
+
+            if (!NetworkUtils.isConnected(context)) {
+                if (callback != null) {
+                    callback.onError("Không có kết nối mạng. Sản phẩm đã được xóa cục bộ, vui lòng thử lại khi có mạng để đồng bộ server.");
+                }
+                return;
+            }
+
+            ApiClient.init(context);
+            ApiService apiService = ApiClient.getApiService();
+            if (apiService == null) {
+                if (callback != null) {
+                    callback.onError("Không thể khởi tạo dịch vụ API");
+                }
+                return;
+            }
+
+            // Backend yêu cầu user_id + item_id khi xóa
+            CartRequest request = new CartRequest(userId, item.itemId);
+            apiService.removeFromCart(request).enqueue(new Callback<BaseResponse<Void>>() {
+                @Override
+                public void onResponse(Call<BaseResponse<Void>> call, Response<BaseResponse<Void>> response) {
+                    try {
+                        if (response.isSuccessful() && response.body() != null && Boolean.TRUE.equals(response.body().getSuccess())) {
+                            if (callback != null) {
+                                callback.onSuccess(response.body().getMessage() != null ? response.body().getMessage() : "Đã xóa sản phẩm khỏi giỏ hàng");
+                            }
+                        } else {
+                            String error = NetworkUtils.extractErrorMessage(response);
+                            if (callback != null) {
+                                callback.onError(error != null ? error : "Không thể xóa sản phẩm khỏi giỏ hàng");
+                            }
+                        }
+                    } catch (Exception e) {
+                        if (callback != null) {
+                            callback.onError("Lỗi khi xử lý phản hồi: " + e.getMessage());
+                        }
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<BaseResponse<Void>> call, Throwable t) {
+                    if (callback != null) {
+                        callback.onError(t.getMessage() != null ? t.getMessage() : "Không thể kết nối đến server");
+                    }
+                }
+            });
+        } catch (Exception e) {
+            if (callback != null) {
+                callback.onError("Lỗi khi xóa khỏi giỏ hàng: " + e.getMessage());
+            }
+        }
+    }
+
     public void updateQuantity(int position, int quantity) {
         if (position >= 0 && position < cartItems.size()) {
             if (quantity > 0) {

@@ -37,7 +37,7 @@
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:src="@drawable/ic_back"
-                    app:tint="#888888"
+                    app:tint="@color/black"
                     android:layout_marginEnd="8dp" />
 
                 <TextView
@@ -45,19 +45,19 @@
                     android:layout_height="wrap_content"
                     android:text="Quay lại"
                     android:textSize="16sp"
-                    android:textColor="#888888" />
+                    android:textColor="@color/black" />
             </LinearLayout>
 
             <!-- Title -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Thanh toán ngân hàng"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:textColor="#006C67"
+                android:layout_marginBottom="32dp"
                 android:gravity="center"
-                android:layout_marginBottom="32dp" />
+                android:text="Thanh toán ngân hàng"
+                android:textColor="@color/black"
+                android:textSize="24sp"
+                android:textStyle="bold" />
 
             <!-- QR Code Section -->
             <TextView

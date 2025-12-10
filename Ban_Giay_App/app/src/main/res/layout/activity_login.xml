@@ -116,7 +116,7 @@
             android:textColor="#FFFFFF"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:background="#000000"
+            android:backgroundTint="#E7FF5722"
             android:layout_marginBottom="12dp" />
 
         <!-- Register Button -->
@@ -128,7 +128,7 @@
             android:textColor="#FFFFFF"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:background="#000000"
+            android:backgroundTint="#E7FF5722"
             android:layout_marginBottom="12dp" />
 
         <!-- Forgot Password Button -->
@@ -140,7 +140,7 @@
             android:textColor="#FFFFFF"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:background="#000000" />
+            android:backgroundTint="#E7FF5722" />
 
     </LinearLayout>
 

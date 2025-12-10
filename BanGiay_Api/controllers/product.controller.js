@@ -2,6 +2,27 @@ const Product = require("../models/Product");
 const Notification = require("../models/Notification");
 const User = require("../models/User");
 
+// Chuẩn hóa và validate danh mục để đồng nhất giữa web admin và app mobile
+const normalizeCategory = (rawCategory) => {
+  if (!rawCategory) return "unisex";
+
+  const value = rawCategory.toString().trim().toLowerCase();
+
+  // Map các giá trị người dùng hay nhập thành giá trị enum hợp lệ
+  if (["nu", "nữ", "female", "women", "girl", "lady", "ladies"].includes(value)) {
+    return "nu";
+  }
+  if (["nam", "male", "man", "men", "boy"].includes(value)) {
+    return "nam";
+  }
+  if (["unisex", "hottrend", "hot trend", "trend"].includes(value)) {
+    return "unisex";
+  }
+
+  // Nếu đã là giá trị hợp lệ thì trả về nguyên vẹn
+  return value;
+};
+
 /**
  * Lấy tất cả sản phẩm (có phân trang và lọc)
  * GET /api/product?page=1&limit=10&danh_muc=nam&search=...
@@ -264,6 +285,18 @@ exports.createProduct = async (req, res) => {
     console.log("\n========== CREATE PRODUCT ==========");
     console.log("Request body:", JSON.stringify(req.body, null, 2));
     
+    // Chuẩn hóa danh mục để tránh sai lệch giữa Admin và app
+    req.body.danh_muc = normalizeCategory(req.body.danh_muc);
+
+    // Validate danh mục hợp lệ
+    const validCategories = ["nam", "nu", "unisex"];
+    if (req.body.danh_muc && !validCategories.includes(req.body.danh_muc)) {
+      return res.status(400).json({
+        success: false,
+        message: `Danh mục không hợp lệ. Chỉ chấp nhận: ${validCategories.join(", ")}`,
+      });
+    }
+
     // Validation các trường bắt buộc
     const { ten_san_pham, gia_goc, gia_khuyen_mai, hinh_anh } = req.body;
 
@@ -370,6 +403,19 @@ exports.updateProduct = async (req, res) => {
     console.log(`\n========== UPDATE PRODUCT ==========`);
     console.log(`Product ID: ${id}`);
     console.log("Update data:", JSON.stringify(req.body, null, 2));
+
+    // Chuẩn hóa danh mục nếu có gửi lên từ client
+    if (req.body.danh_muc !== undefined) {
+      req.body.danh_muc = normalizeCategory(req.body.danh_muc);
+
+      const validCategories = ["nam", "nu", "unisex"];
+      if (req.body.danh_muc && !validCategories.includes(req.body.danh_muc)) {
+        return res.status(400).json({
+          success: false,
+          message: `Danh mục không hợp lệ. Chỉ chấp nhận: ${validCategories.join(", ")}`,
+        });
+      }
+    }
     
     const updatedProduct = await Product.findByIdAndUpdate(
       id,
