@@ -18,6 +18,10 @@ public class CartRequest {
     @SerializedName("quantity")
     private Integer quantity;
 
+    // Dùng khi xóa item trong giỏ hàng (backend yêu cầu item_id)
+    @SerializedName("item_id")
+    private String itemId;
+
     public CartRequest() {
     }
 
@@ -26,6 +30,11 @@ public class CartRequest {
         this.productId = productId;
         this.size = size;
         this.quantity = quantity;
+    }
+
+    public CartRequest(String userId, String itemId) {
+        this.userId = userId;
+        this.itemId = itemId;
     }
 
     public String getUserId() {
@@ -58,6 +67,14 @@ public class CartRequest {
 
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
+    }
+
+    public String getItemId() {
+        return itemId;
+    }
+
+    public void setItemId(String itemId) {
+        this.itemId = itemId;
     }
 }
 

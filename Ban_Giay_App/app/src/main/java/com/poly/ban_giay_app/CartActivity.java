@@ -75,6 +75,7 @@ public class CartActivity extends AppCompatActivity {
 
             sessionManager = new SessionManager(this);
             cartManager = CartManager.getInstance();
+            cartManager.setContext(this);
             ApiClient.init(this);
             apiService = ApiClient.getApiService();
 
@@ -263,11 +264,34 @@ public class CartActivity extends AppCompatActivity {
 
                 @Override
                 public void onItemRemoved(int position) {
+                    if (cartManager == null || cartManager.getCartItems().isEmpty() || position < 0 || position >= cartManager.getCartItems().size()) {
+                        return;
+                    }
+
+                    CartItem item = cartManager.getCartItems().get(position);
+                    // Xóa ngay trên UI để người dùng thấy phản hồi
                     cartManager.removeFromCart(position);
                     if (cartAdapter != null) {
                         cartAdapter.notifyDataSetChanged();
                     }
                     updateUI();
+
+                    // Đồng bộ xóa với server
+                    cartManager.removeItemFromServer(item, new CartManager.CartCallback() {
+                        @Override
+                        public void onSuccess(String message) {
+                            Toast.makeText(CartActivity.this, message, Toast.LENGTH_SHORT).show();
+                            // Reload để chắc chắn đồng bộ với server
+                            loadCartFromServer();
+                        }
+
+                        @Override
+                        public void onError(String error) {
+                            Toast.makeText(CartActivity.this, error, Toast.LENGTH_SHORT).show();
+                            // Nếu lỗi, reload lại từ server để trạng thái nhất quán
+                            loadCartFromServer();
+                        }
+                    });
                 }
             });
             rvCartItems.setAdapter(cartAdapter);
@@ -530,12 +554,13 @@ public class CartActivity extends AppCompatActivity {
                                     if (product != null) {
                                         // Create CartItem với giá từ server
                                         long itemGia = itemResponse.getGia() != null ? itemResponse.getGia() : 0;
-                                        CartItem cartItem = new CartItem(
-                                            product,
-                                            itemResponse.getKichThuoc() != null ? itemResponse.getKichThuoc() : "",
-                                            itemResponse.getSoLuong() != null ? itemResponse.getSoLuong() : 1,
-                                            itemGia
-                                        );
+                                    CartItem cartItem = new CartItem(
+                                        product,
+                                        itemResponse.getKichThuoc() != null ? itemResponse.getKichThuoc() : "",
+                                        itemResponse.getSoLuong() != null ? itemResponse.getSoLuong() : 1,
+                                        itemGia,
+                                        itemResponse.getId()
+                                    );
                                         Log.d("CartActivity", "Created CartItem with gia: " + itemGia + ", quantity: " + cartItem.quantity + ", total: " + cartItem.getTotalPrice());
                                         
                                         newCartItems.add(cartItem);

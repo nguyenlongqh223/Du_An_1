@@ -320,7 +320,6 @@
             <a href="manage-customers.html" class="nav-item">Quản lý Khách hàng</a>
             <a href="manage-orders.html" class="nav-item">Quản lý Đơn hàng</a>
             <a href="manage-products.html" class="nav-item active">Quản lý Sản phẩm</a>
-            <a href="manage-carts.html" class="nav-item">Quản lý Giỏ hàng</a>
         </nav>
 
         <div class="content-box">
@@ -385,14 +384,14 @@
                             <option value="">Chọn danh mục</option>
                             <option value="nam">Nam</option>
                             <option value="nu">Nữ</option>
-                            <option value="unisex">Unisex</option>
+                            <option value="unisex">Hot trend</option>
                         </select>
                     </div>
                     <div class="form-group">
                         <label for="trang_thai">Trạng thái *</label>
                         <select id="trang_thai" required>
-                            <option value="active">Hoạt động</option>
-                            <option value="inactive">Ngừng hoạt động</option>
+                            <option value="active">CÒN HÀNG</option>
+                            <option value="inactive">HẾT HÀNG</option>
                         </select>
                     </div>
                 </div>
@@ -498,14 +497,14 @@
             const categories = {
                 'nam': 'Nam',
                 'nu': 'Nữ',
-                'unisex': 'Unisex'
+                'unisex': 'Hot trend'
             };
             return categories[category] || category || 'N/A';
         }
 
         // Get status name
         function getStatusName(status) {
-            return status === 'active' ? 'HOẠT ĐỘNG' : 'NGỪNG HOẠT ĐỘNG';
+            return status === 'active' ? 'CÒN HÀNG' : 'HẾT HÀNG';
         }
 
         // Search products

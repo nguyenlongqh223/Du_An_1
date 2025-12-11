@@ -12,7 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:background="#006C67"
+        android:background="#E7FF5722"
         android:padding="12dp"
         android:gravity="center_vertical"
         android:layout_alignParentTop="true">
@@ -118,18 +118,20 @@
     </LinearLayout>
 
     <!-- Tiêu đề Giỏ hàng -->
+
+    <!-- Layout chọn tất cả -->
     <TextView
         android:id="@+id/txtCartTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Giỏ hàng của bạn"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:textColor="#006C67"
+        android:layout_below="@id/headerLayout"
+        android:layout_marginTop="2dp"
         android:padding="16dp"
-        android:layout_below="@id/headerLayout" />
+        android:text="Giỏ hàng của bạn"
+        android:textColor="@color/black"
+        android:textSize="24sp"
+        android:textStyle="bold" />
 
-    <!-- Layout chọn tất cả -->
     <LinearLayout
         android:id="@+id/layoutSelectAll"
         android:layout_width="match_parent"

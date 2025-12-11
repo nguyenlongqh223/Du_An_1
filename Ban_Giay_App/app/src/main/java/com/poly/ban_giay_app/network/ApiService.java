@@ -19,6 +19,7 @@ import java.util.List;
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.DELETE;
+import retrofit2.http.HTTP;
 import retrofit2.http.GET;
 import retrofit2.http.POST;
 import retrofit2.http.PUT;
@@ -121,8 +122,8 @@ public interface ApiService {
     Call<BaseResponse<Void>> updateCartItem(@Body com.poly.ban_giay_app.network.request.CartRequest request);
 
     // DELETE http://YOUR_IP:3000/api/cart/item
-    // Xóa sản phẩm khỏi giỏ hàng
-    @DELETE("cart/item")
+    // Xóa sản phẩm khỏi giỏ hàng (DELETE có body cần dùng @HTTP(hasBody = true))
+    @HTTP(method = "DELETE", path = "cart/item", hasBody = true)
     Call<BaseResponse<Void>> removeFromCart(@Body com.poly.ban_giay_app.network.request.CartRequest request);
 
     // ==================== ORDER APIs ====================
@@ -177,6 +178,12 @@ public interface ApiService {
     Call<BaseResponse<NotificationListResponse>> getNotifications(
             @Query("user_id") String userId,
             @Query("da_doc") Boolean daDoc
+    );
+
+    // GET http://YOUR_IP:3000/api/notification/{user_id}
+    @GET("notification/{user_id}")
+    Call<BaseResponse<NotificationListResponse>> getNotificationsByUser(
+            @Path("user_id") String userId
     );
 
     // PUT http://YOUR_IP:3000/api/notification/{id}/read

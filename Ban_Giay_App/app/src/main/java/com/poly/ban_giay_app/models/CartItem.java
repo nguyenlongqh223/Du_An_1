@@ -8,6 +8,8 @@ public class CartItem implements Serializable {
     public int quantity;
     public boolean isSelected;
     public long gia; // Giá tại thời điểm thêm vào giỏ (từ server)
+    // ID của item trong giỏ hàng trên server (dùng cho thao tác delete/update)
+    public String itemId;
 
     public CartItem(Product product, String size, int quantity) {
         this.product = product;
@@ -15,6 +17,7 @@ public class CartItem implements Serializable {
         this.quantity = quantity;
         this.isSelected = false;
         this.gia = 0; // Mặc định 0, sẽ được set từ server
+        this.itemId = null;
     }
 
     public CartItem(Product product, String size, int quantity, long gia) {
@@ -23,6 +26,16 @@ public class CartItem implements Serializable {
         this.quantity = quantity;
         this.isSelected = false;
         this.gia = gia;
+        this.itemId = null;
+    }
+
+    public CartItem(Product product, String size, int quantity, long gia, String itemId) {
+        this.product = product;
+        this.size = size;
+        this.quantity = quantity;
+        this.isSelected = false;
+        this.gia = gia;
+        this.itemId = itemId;
     }
 
     /**

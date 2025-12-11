@@ -54,6 +54,84 @@
             font-size: 0.85em;
             font-weight: 500;
         }
+
+        /* Filters layout */
+        .orders-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-end;
+            margin: 12px 0 6px;
+            background: #f7f7fb;
+            padding: 12px;
+            border: 1px solid #e6e6f0;
+            border-radius: 10px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filter-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .filter-input {
+            min-height: 38px;
+            padding: 9px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s ease;
+            background: #fff;
+        }
+
+        .filter-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .filters-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-reset-filters {
+            padding: 10px 14px;
+            border: 2px solid #e0e0e0;
+            background: #fff;
+            color: #333;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            min-width: 90px;
+        }
+
+        .btn-reset-filters:hover {
+            background: #f0f0f5;
+            border-color: #d0d0da;
+        }
+
+        @media (max-width: 640px) {
+            .orders-filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filters-actions {
+                width: 100%;
+            }
+
+            .btn-reset-filters {
+                width: 100%;
+                text-align: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -71,17 +149,34 @@
             <a href="manage-customers.html" class="nav-item">Quản lý Khách hàng</a>
             <a href="manage-orders.html" class="nav-item active">Quản lý Đơn hàng</a>
             <a href="manage-products.html" class="nav-item">Quản lý Sản phẩm</a>
-            <a href="manage-carts.html" class="nav-item">Quản lý Giỏ hàng</a>
         </nav>
 
         <div class="content-box">
             <h2>Danh sách đơn hàng</h2>
+            <div class="orders-filters">
+                <div class="filter-group" style="flex: 1; min-width: 240px;">
+                    <label class="filter-label">Tìm kiếm</label>
+                    <input type="text" id="orderSearchInput" class="filter-input" placeholder="🔍 ID đơn / Tên khách hàng" onkeyup="filterOrders()">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Từ ngày</label>
+                    <input type="date" id="fromDate" class="filter-input" onchange="filterOrders()">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Đến ngày</label>
+                    <input type="date" id="toDate" class="filter-input" onchange="filterOrders()">
+                </div>
+                <div class="filters-actions">
+                    <button class="btn-reset-filters" onclick="resetOrderFilters()">Xóa lọc</button>
+                </div>
+            </div>
             <div class="table-container">
                 <table id="ordersTable">
                     <thead>
                         <tr>
                             <th>ID</th>
                             <th>Khách hàng</th>
+                            <th>Tên sản phẩm</th>
                             <th>Số sản phẩm</th>
                             <th>Tổng tiền</th>
                             <th>Ngày đặt</th>
@@ -220,10 +315,15 @@
                 const row = document.createElement('tr');
                 const orderId = String(order.id || order._id || '').substring(0, 8);
                 const statusValue = order.status || 'pending';
+                const productNames = (order.items || [])
+                    .map(item => item.ten_san_pham || item.product_name || item.name || item?.san_pham?.ten_san_pham || item?.product?.name)
+                    .filter(Boolean)
+                    .join(', ');
                 
                 row.innerHTML = `
                     <td>#${orderId}</td>
                     <td>${order.customer || 'N/A'}</td>
+                    <td>${productNames || 'N/A'}</td>
                     <td>${order.items?.length || 0}</td>
                     <td>${formatCurrency(order.total || 0)}</td>
                     <td>${formatDate(order.date)}</td>
@@ -245,6 +345,45 @@
             console.log(`✅ Hiển thị ${orders.length} đơn hàng`);
         }
         
+        // Filter orders by search and date
+        function filterOrders() {
+            const term = (document.getElementById('orderSearchInput')?.value || '').trim().toLowerCase();
+            const fromDateValue = document.getElementById('fromDate')?.value;
+            const toDateValue = document.getElementById('toDate')?.value;
+
+            const fromDate = fromDateValue ? new Date(fromDateValue + 'T00:00:00') : null;
+            const toDate = toDateValue ? new Date(toDateValue + 'T23:59:59') : null;
+
+            const filtered = allOrders.filter(order => {
+                const id = (order.id || order._id || '').toString().toLowerCase();
+                const customer = (order.customer || '').toLowerCase();
+
+                const matchTerm = !term || id.includes(term) || customer.includes(term);
+
+                let matchDate = true;
+                if (fromDate || toDate) {
+                    const orderDate = new Date(order.date);
+                    if (fromDate && orderDate < fromDate) matchDate = false;
+                    if (toDate && orderDate > toDate) matchDate = false;
+                }
+
+                return matchTerm && matchDate;
+            });
+
+            displayOrders(filtered);
+        }
+
+        // Reset filters
+        function resetOrderFilters() {
+            const search = document.getElementById('orderSearchInput');
+            const fromDate = document.getElementById('fromDate');
+            const toDate = document.getElementById('toDate');
+            if (search) search.value = '';
+            if (fromDate) fromDate.value = '';
+            if (toDate) toDate.value = '';
+            displayOrders(allOrders);
+        }
+
         // Update order status
         async function updateOrderStatus(orderId, newStatus) {
             try {
