@@ -3,21 +3,102 @@ const User = require("../models/User");
 // Lấy tất cả User
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.find();
-    res.json(users);
+    console.log("\n========== GET ALL USERS ==========");
+    
+    // Lấy users nhưng không lấy password
+    const users = await User.find().select("-mat_khau -otp -otpExpires").sort({ createdAt: -1 });
+    
+    console.log(`Found ${users.length} users`);
+    
+    // Format response để đảm bảo có đầy đủ field
+    const formattedUsers = users.map(user => {
+      const userObj = user.toObject();
+      return {
+        _id: String(userObj._id),
+        ten_dang_nhap: userObj.ten_dang_nhap || "",
+        ho_ten: userObj.ho_ten || "",
+        email: userObj.email || "",
+        so_dien_thoai: userObj.so_dien_thoai || "",
+        dia_chi: userObj.dia_chi || "",
+        trang_thai: userObj.trang_thai || "active", // Mặc định là "active" nếu không có
+        createdAt: userObj.createdAt,
+        updatedAt: userObj.updatedAt
+      };
+    });
+    
+    console.log(`Formatted ${formattedUsers.length} users`);
+    if (formattedUsers.length > 0) {
+      console.log("Sample user:", {
+        _id: formattedUsers[0]._id,
+        ho_ten: formattedUsers[0].ho_ten,
+        email: formattedUsers[0].email,
+        so_dien_thoai: formattedUsers[0].so_dien_thoai,
+        dia_chi: formattedUsers[0].dia_chi
+      });
+    }
+    console.log("==========================================\n");
+    
+    // Trả về cả 2 format để tương thích
+    // Format 1: Wrapped (chuẩn mới)
+    // Format 2: Array trực tiếp (tương thích với frontend cũ)
+    res.json({
+      success: true,
+      data: formattedUsers,
+      count: formattedUsers.length,
+      // Thêm array trực tiếp để tương thích với frontend cũ
+      users: formattedUsers
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("❌ Error getting users:", err);
+    res.status(500).json({ 
+      success: false,
+      error: err.message || "Lỗi server khi lấy danh sách user" 
+    });
   }
 };
 
 // Lấy User theo ID
 exports.getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ message: "User không tồn tại" });
-    res.json(user);
+    const user = await User.findById(req.params.id).select("-mat_khau -otp -otpExpires");
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        message: "User không tồn tại" 
+      });
+    }
+    
+    const userObj = user.toObject();
+    const formattedUser = {
+      _id: String(userObj._id),
+      ten_dang_nhap: userObj.ten_dang_nhap || "",
+      ho_ten: userObj.ho_ten || "",
+      email: userObj.email || "",
+      so_dien_thoai: userObj.so_dien_thoai || "",
+      dia_chi: userObj.dia_chi || "",
+      trang_thai: userObj.trang_thai || "active", // Mặc định là "active" nếu không có
+      createdAt: userObj.createdAt,
+      updatedAt: userObj.updatedAt
+    };
+    
+    res.json({
+      success: true,
+      user: formattedUser,
+      data: formattedUser
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("❌ Error getting user by ID:", err);
+    if (err.name === "CastError") {
+      return res.status(400).json({ 
+        success: false,
+        message: "ID user không hợp lệ" 
+      });
+    }
+    res.status(500).json({ 
+      success: false,
+      error: err.message || "Lỗi server khi lấy thông tin user" 
+    });
   }
 };
 

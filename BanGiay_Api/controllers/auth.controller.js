@@ -9,16 +9,88 @@ const JWT_SECRET = process.env.JWT_SECRET || "ban_giay_secret_key";
 // ---------------- ĐĂNG KÝ ----------------
 exports.register = async (req, res) => {
   try {
-    const { ten_dang_nhap, mat_khau, ho_ten, email } = req.body;
+    console.log("\n========== REGISTER USER ==========");
+    console.log("Request body:", JSON.stringify(req.body, null, 2));
+    
+    const { ten_dang_nhap, mat_khau, ho_ten, email, so_dien_thoai, dia_chi } = req.body;
+    
+    // Validation
+    if (!ten_dang_nhap || !mat_khau || !email) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Vui lòng điền đầy đủ thông tin: ten_dang_nhap, mat_khau, email" 
+      });
+    }
+    
+    // Kiểm tra email đã tồn tại chưa
     const userExists = await User.findOne({ email });
-    if (userExists)
-      return res.status(400).json({ message: "Email đã tồn tại" });
+    if (userExists) {
+      console.log(`❌ Email already exists: ${email}`);
+      return res.status(400).json({ 
+        success: false,
+        message: "Email đã tồn tại" 
+      });
+    }
+    
+    // Kiểm tra ten_dang_nhap đã tồn tại chưa
+    const usernameExists = await User.findOne({ ten_dang_nhap });
+    if (usernameExists) {
+      console.log(`❌ Username already exists: ${ten_dang_nhap}`);
+      return res.status(400).json({ 
+        success: false,
+        message: "Tên đăng nhập đã tồn tại" 
+      });
+    }
 
-    const user = new User({ ten_dang_nhap, mat_khau, ho_ten, email });
+    // Tạo user mới với đầy đủ thông tin
+    const user = new User({ 
+      ten_dang_nhap, 
+      mat_khau, 
+      ho_ten: ho_ten || "", 
+      email,
+      so_dien_thoai: so_dien_thoai || "",
+      dia_chi: dia_chi || ""
+    });
+    
     await user.save();
-    res.json({ message: "Đăng ký thành công", user });
+    
+    console.log(`✅ User registered successfully: ${user.email}`);
+    console.log(`   - Ho ten: ${user.ho_ten}`);
+    console.log(`   - So dien thoai: ${user.so_dien_thoai || "N/A"}`);
+    console.log(`   - Dia chi: ${user.dia_chi || "N/A"}`);
+    console.log("==========================================\n");
+    
+    // Trả về user nhưng không có password
+    const userResponse = {
+      _id: user._id,
+      ten_dang_nhap: user.ten_dang_nhap,
+      ho_ten: user.ho_ten || "",
+      email: user.email,
+      so_dien_thoai: user.so_dien_thoai || "",
+      dia_chi: user.dia_chi || "",
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
+    
+    res.json({ 
+      success: true,
+      message: "Đăng ký thành công", 
+      user: userResponse 
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("❌ Error registering user:", err);
+    if (err.code === 11000) {
+      // Duplicate key error
+      const field = Object.keys(err.keyPattern)[0];
+      return res.status(400).json({ 
+        success: false,
+        message: `${field === 'email' ? 'Email' : 'Tên đăng nhập'} đã tồn tại` 
+      });
+    }
+    res.status(500).json({ 
+      success: false,
+      error: err.message || "Lỗi server khi đăng ký" 
+    });
   }
 };
 

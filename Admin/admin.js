@@ -147,19 +147,47 @@ async function loadData(type) {
         switch(type) {
             case 'customers':
                 const usersResponse = await apiCall('/user');
+                console.log('Users API Response:', usersResponse);
+                
+                // Xử lý response - có thể là array hoặc object với data/users
+                let users = [];
+                if (Array.isArray(usersResponse)) {
+                    users = usersResponse;
+                } else if (usersResponse.success && usersResponse.data) {
+                    users = usersResponse.data;
+                } else if (usersResponse.users) {
+                    users = usersResponse.users;
+                } else if (usersResponse.data) {
+                    users = usersResponse.data;
+                }
+                
+                console.log(`Found ${users.length} users`);
+                
                 // Transform users data to match expected format
-                return Array.isArray(usersResponse) ? usersResponse.map(user => ({
-                    id: user._id,
-                    _id: user._id,
-                    name: user.ho_ten || user.ten_dang_nhap,
-                    ho_ten: user.ho_ten,
-                    ten_dang_nhap: user.ten_dang_nhap,
-                    email: user.email,
-                    phone: user.so_dien_thoai || 'N/A',
-                    so_dien_thoai: user.so_dien_thoai,
-                    dia_chi: user.dia_chi,
-                    status: 'active'
-                })) : [];
+                return users.map(user => {
+                    // Xử lý status: chuyển "HOẠT ĐỘNG" thành "active", các giá trị khác thành "active" mặc định
+                    let status = 'active';
+                    if (user.trang_thai) {
+                        if (user.trang_thai === 'active' || user.trang_thai === 'HOẠT ĐỘNG') {
+                            status = 'active';
+                        } else if (user.trang_thai === 'inactive' || user.trang_thai === 'NGỪNG HOẠT ĐỘNG') {
+                            status = 'inactive';
+                        }
+                    }
+                    
+                    return {
+                        id: user._id || user.id,
+                        _id: user._id || user.id,
+                        name: user.ho_ten || user.ten_dang_nhap || 'N/A',
+                        ho_ten: user.ho_ten || '',
+                        ten_dang_nhap: user.ten_dang_nhap || '',
+                        email: user.email || 'N/A',
+                        phone: user.so_dien_thoai || 'N/A',
+                        so_dien_thoai: user.so_dien_thoai || '',
+                        dia_chi: user.dia_chi || '',
+                        status: status
+                    };
+                });
             
             case 'orders':
                 const ordersResponse = await apiCall('/order');
