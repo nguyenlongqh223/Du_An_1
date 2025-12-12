@@ -36,7 +36,10 @@ app.get("/", (req, res) => {
       bestSelling: "/api/product/best-selling",
       cart: "/api/cart",
       orders: "/api/order",
-      auth: "/api/auth"
+      auth: "/api/auth",
+      notifications: "/api/notification",
+      categories: "/api/category",
+      users: "/api/user"
     }
   });
 });
@@ -89,6 +92,9 @@ app.use("/api/notification", require("./routes/notification.routes"));
 
 // Payment APIs
 app.use("/api/payment", require("./routes/payment.routes"));
+
+// Category APIs
+app.use("/api/category", require("./routes/category.routes"));
 
 // ------------------- Server -------------------
 const PORT = process.env.PORT || 3000;

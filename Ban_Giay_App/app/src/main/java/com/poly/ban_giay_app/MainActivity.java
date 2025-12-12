@@ -60,6 +60,8 @@ public class MainActivity extends AppCompatActivity {
     private Handler searchHandler = new Handler(Looper.getMainLooper());
     private Runnable searchRunnable;
     private ApiService apiService;
+    private Handler notificationCheckHandler = new Handler(Looper.getMainLooper());
+    private Runnable notificationCheckRunnable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,6 +109,36 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         updateAccountNavUi();
         loadNotificationCount();
+        startNotificationCheck();
+    }
+    
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopNotificationCheck();
+    }
+    
+    private void startNotificationCheck() {
+        // Dừng check cũ nếu có
+        stopNotificationCheck();
+        
+        // Check thông báo mới mỗi 30 giây
+        notificationCheckRunnable = new Runnable() {
+            @Override
+            public void run() {
+                loadNotificationCount();
+                // Lên lịch check lại sau 30 giây
+                notificationCheckHandler.postDelayed(this, 30000);
+            }
+        };
+        notificationCheckHandler.postDelayed(notificationCheckRunnable, 30000);
+    }
+    
+    private void stopNotificationCheck() {
+        if (notificationCheckRunnable != null) {
+            notificationCheckHandler.removeCallbacks(notificationCheckRunnable);
+            notificationCheckRunnable = null;
+        }
     }
     
     private void initNotificationIcon() {
@@ -136,6 +168,37 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        // Dùng API endpoint chuyên dụng để lấy số thông báo chưa đọc (nhanh hơn)
+        apiService.getUnreadNotificationCount(userId).enqueue(new Callback<BaseResponse<Integer>>() {
+            @Override
+            public void onResponse(Call<BaseResponse<Integer>> call, 
+                                 Response<BaseResponse<Integer>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().getSuccess()) {
+                    Integer count = response.body().getData();
+                    if (count != null) {
+                        updateNotificationBadge(count);
+                        Log.d("MainActivity", "Unread notifications count: " + count);
+                    } else {
+                        updateNotificationBadge(0);
+                    }
+                } else {
+                    // Fallback: thử dùng API cũ nếu API mới không hoạt động
+                    Log.w("MainActivity", "Unread count API failed, trying fallback...");
+                    loadNotificationCountFallback(userId);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<BaseResponse<Integer>> call, Throwable t) {
+                Log.e("MainActivity", "Error loading notification count: " + t.getMessage());
+                // Fallback: thử dùng API cũ
+                loadNotificationCountFallback(userId);
+            }
+        });
+    }
+    
+    private void loadNotificationCountFallback(String userId) {
+        // Fallback: dùng API cũ để lấy số thông báo chưa đọc
         apiService.getNotifications(userId, false).enqueue(new Callback<BaseResponse<NotificationListResponse>>() {
             @Override
             public void onResponse(Call<BaseResponse<NotificationListResponse>> call, Response<BaseResponse<NotificationListResponse>> response) {
@@ -153,7 +216,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<BaseResponse<NotificationListResponse>> call, Throwable t) {
-                Log.e("MainActivity", "Error loading notification count: " + t.getMessage());
+                Log.e("MainActivity", "Fallback API also failed: " + t.getMessage());
                 updateNotificationBadge(0);
             }
         });
@@ -265,13 +328,17 @@ public class MainActivity extends AppCompatActivity {
                             topProductList.clear();
                             for (ProductResponse productResponse : products) {
                                 if (productResponse != null) {
+                                    String imageUrl = productResponse.getImageUrl();
                                     Log.d("MainActivity", "Processing product: " + productResponse.getName() + 
                                           " - Price: " + productResponse.getPriceNew() + 
-                                          " - Image: " + productResponse.getImageUrl());
+                                          " - Image: " + imageUrl);
                                     Product product = convertToProduct(productResponse);
                                     if (product != null && product.name != null && !product.name.isEmpty()) {
                                         topProductList.add(product);
-                                        Log.d("MainActivity", "Added product: " + product.name + " - " + product.priceNew);
+                                        Log.d("MainActivity", "Added product: " + product.name + 
+                                                " - Price: " + product.priceNew + 
+                                                " - ImageUrl: " + product.imageUrl + 
+                                                " - ImageRes: " + product.imageRes);
                                     } else {
                                         Log.w("MainActivity", "Failed to convert product: " + productResponse.getName());
                                     }
@@ -745,19 +812,34 @@ public class MainActivity extends AppCompatActivity {
 
         // Tạo Product với URL ảnh (nếu có) hoặc resource mặc định
         if (imageUrl != null && !imageUrl.trim().isEmpty()) {
+            // Đảm bảo imageUrl là duy nhất cho từng sản phẩm
+            String finalImageUrl = imageUrl.trim();
+            
+            // Nếu là base64 image, giữ nguyên
+            if (finalImageUrl.startsWith("data:image")) {
+                // Base64 image - giữ nguyên
+            } else if (finalImageUrl.startsWith("http://") || finalImageUrl.startsWith("https://")) {
+                // URL từ server - giữ nguyên
+            } else {
+                // Tên file ảnh local - có thể cần xử lý thêm
+                Log.d("MainActivity", "Image is local file name: " + finalImageUrl);
+            }
+            
             Product product = new Product(
                 name, 
                 priceOld != null ? priceOld : "", 
                 priceNew, 
-                imageUrl.trim()
+                finalImageUrl
             );
             // Lưu ID sản phẩm từ MongoDB
             product.id = productResponse.getId();
-            // Đảm bảo imageUrl được set
-            product.imageUrl = imageUrl.trim();
+            // Đảm bảo imageUrl được set với giá trị cuối cùng
+            product.imageUrl = finalImageUrl;
             // Đảm bảo imageRes = 0 khi dùng imageUrl
             product.imageRes = 0;
-            Log.d("MainActivity", "✅ Created product with imageUrl: " + product.imageUrl + ", ID: " + product.id);
+            Log.d("MainActivity", "✅ Created product: " + name + 
+                    " | imageUrl: " + product.imageUrl + 
+                    " | ID: " + product.id);
             return product;
         } else {
             // Nếu không có URL ảnh, dùng ảnh mặc định
@@ -772,7 +854,9 @@ public class MainActivity extends AppCompatActivity {
             // Đảm bảo imageUrl = null và imageRes được set
             product.imageUrl = null;
             product.imageRes = R.drawable.giaymau;
-            Log.d("MainActivity", "✅ Created product with default image (imageRes: " + product.imageRes + "), ID: " + product.id);
+            Log.d("MainActivity", "✅ Created product with default image: " + name + 
+                    " | imageRes: " + product.imageRes + 
+                    " | ID: " + product.id);
             return product;
         }
     }

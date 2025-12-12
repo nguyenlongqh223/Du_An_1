@@ -345,15 +345,32 @@ public class CartManager {
 
     /**
      * Thêm sản phẩm vào local cart (để hiển thị ngay trong UI)
-     * Luôn tạo item mới, không merge với item cũ
+     * Nếu đã có sản phẩm cùng ID và size, sẽ tăng số lượng thay vì tạo item mới
      */
     private void addToLocalCart(Product product, String size, int quantity) {
         try {
-            // Luôn tạo item mới, không merge
-            // Mỗi lần thêm sản phẩm sẽ tạo một item riêng biệt
+            // Kiểm tra xem đã có item nào với cùng product ID và size chưa
+            if (product != null && product.id != null && !product.id.isEmpty()) {
+                for (CartItem existingItem : cartItems) {
+                    if (existingItem.product != null && 
+                        existingItem.product.id != null && 
+                        existingItem.product.id.equals(product.id) &&
+                        existingItem.size != null &&
+                        existingItem.size.equals(size)) {
+                        // Tìm thấy item cùng sản phẩm và size -> tăng số lượng
+                        existingItem.quantity += quantity;
+                        Log.d("CartManager", "✅ Merged with existing item. New quantity: " + existingItem.quantity + 
+                              " (Product: " + product.name + ", Size: " + size + ")");
+                        return;
+                    }
+                }
+            }
+            
+            // Không tìm thấy item cùng sản phẩm và size -> tạo item mới
             CartItem newItem = new CartItem(product, size, quantity);
             cartItems.add(newItem);
-            Log.d("CartManager", "✅ Added NEW item to local cart (no merge). Total items: " + cartItems.size());
+            Log.d("CartManager", "✅ Added NEW item to local cart. Total items: " + cartItems.size() + 
+                  " (Product: " + product.name + ", Size: " + size + ", Quantity: " + quantity + ")");
         } catch (Exception e) {
             Log.e("CartManager", "❌ Error adding to local cart", e);
         }

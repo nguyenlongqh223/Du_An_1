@@ -21,6 +21,9 @@ public class BaseResponse<T> {
     @SerializedName("product")
     private T product;
 
+    @SerializedName("notifications")
+    private T notifications;
+
     public Boolean getSuccess() {
         return success != null ? success : true;
     }
@@ -30,9 +33,12 @@ public class BaseResponse<T> {
     }
 
     public T getData() {
-        // Ưu tiên data, sau đó product, products, cuối cùng là user
+        // Ưu tiên data, sau đó notifications, product, products, cuối cùng là user
         if (data != null) {
             return data;
+        }
+        if (notifications != null) {
+            return notifications;
         }
         if (product != null) {
             return product;

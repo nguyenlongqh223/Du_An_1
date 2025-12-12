@@ -230,6 +230,44 @@ exports.getNewestProducts = async (req, res) => {
 };
 
 /**
+ * Lấy sản phẩm hot trend
+ * GET /api/product/hot-trend?limit=10
+ */
+exports.getHotTrendProducts = async (req, res) => {
+  try {
+    const limit = Number(req.query.limit) || 10;
+    console.log(`\n========== GET HOT TREND PRODUCTS ==========`);
+    console.log(`Limit: ${limit}`);
+    
+    // Lấy sản phẩm hot trend: sản phẩm trong danh mục "unisex" hoặc có đánh giá cao
+    const products = await Product.find({ 
+      trang_thai: "active",
+      $or: [
+        { danh_muc: "unisex" },
+        { danh_gia: { $gte: 4.5 } }
+      ]
+    })
+      .sort({ danh_gia: -1, so_luong_da_ban: -1, createdAt: -1 })
+      .limit(limit);
+    
+    console.log(`Found ${products.length} hot trend products`);
+    if (products.length > 0) {
+      console.log(`Top hot trend product: ${products[0].ten_san_pham} - Rating: ${products[0].danh_gia}`);
+    }
+    console.log(`==========================================\n`);
+    
+    // Trả về array trực tiếp như Android app expect
+    res.json(products);
+  } catch (err) {
+    console.error("❌ Error in getHotTrendProducts:", err);
+    res.status(500).json({ 
+      success: false,
+      message: err.message || "Lỗi server khi lấy sản phẩm hot trend" 
+    });
+  }
+};
+
+/**
  * Lấy sản phẩm theo danh mục
  * GET /api/product/category/:danh_muc
  */

@@ -154,9 +154,12 @@ public interface ApiService {
     );
 
     // PUT http://YOUR_IP:3000/api/order/{orderId}/cancel
-    // Hủy đơn hàng
+    // Hủy đơn hàng (có lý do)
     @PUT("order/{orderId}/cancel")
-    Call<BaseResponse<com.poly.ban_giay_app.network.model.OrderResponse>> cancelOrder(@Path("orderId") String orderId);
+    Call<BaseResponse<com.poly.ban_giay_app.network.model.OrderResponse>> cancelOrder(
+            @Path("orderId") String orderId,
+            @Body com.poly.ban_giay_app.network.request.CancelOrderRequest request
+    );
 
     // ==================== LEGACY APIs (Giữ lại để tương thích) ====================
     // Lấy danh sách sản phẩm bán chạy (legacy)
@@ -172,6 +175,13 @@ public interface ApiService {
     Call<BaseResponse<List<ProductResponse>>> getAllProducts();
 
     // ==================== NOTIFICATION APIs ====================
+    // GET http://YOUR_IP:3000/api/notification/{user_id}/unread/count
+    // Lấy số thông báo chưa đọc (nhanh hơn, không cần load toàn bộ danh sách)
+    @GET("notification/{user_id}/unread/count")
+    Call<BaseResponse<Integer>> getUnreadNotificationCount(
+            @Path("user_id") String userId
+    );
+
     // GET http://YOUR_IP:3000/api/notification?user_id=xxx&da_doc=false
     // Lấy danh sách thông báo của user
     @GET("notification")

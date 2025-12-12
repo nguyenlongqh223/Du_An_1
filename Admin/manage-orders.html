@@ -47,6 +47,13 @@
             border-color: #dc3545;
         }
         
+        .status-select:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+            background: #e9ecef !important;
+            border-color: #ced4da !important;
+        }
+        
         .status-badge {
             display: inline-block;
             padding: 5px 12px;
@@ -117,6 +124,173 @@
             border-color: #d0d0da;
         }
 
+        /* Action buttons */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .btn-view, .btn-delete {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-view {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-view:hover {
+            background: #5568d3;
+        }
+
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background: #c82333;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 0;
+            border: none;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 700px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover,
+        .close:focus {
+            opacity: 0.7;
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .order-detail-section {
+            margin-bottom: 25px;
+        }
+
+        .order-detail-section h3 {
+            color: #667eea;
+            font-size: 18px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .detail-row {
+            display: flex;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #666;
+            width: 150px;
+            flex-shrink: 0;
+        }
+
+        .detail-value {
+            color: #333;
+            flex: 1;
+        }
+
+        .items-list {
+            margin-top: 10px;
+        }
+
+        .item-card {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .item-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .item-details {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .item-details span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .total-section {
+            background: #f0f7ff;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .total-amount {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+            text-align: right;
+        }
+
         @media (max-width: 640px) {
             .orders-filters {
                 flex-direction: column;
@@ -149,6 +323,7 @@
             <a href="manage-customers.html" class="nav-item">Quản lý Khách hàng</a>
             <a href="manage-orders.html" class="nav-item active">Quản lý Đơn hàng</a>
             <a href="manage-products.html" class="nav-item">Quản lý Sản phẩm</a>
+            <a href="manage-categories.html" class="nav-item">Quản lý Danh mục</a>
         </nav>
 
         <div class="content-box">
@@ -181,10 +356,24 @@
                             <th>Tổng tiền</th>
                             <th>Ngày đặt</th>
                             <th>Trạng thái</th>
+                            <th>Thao tác</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Order Details -->
+    <div id="orderDetailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Chi tiết đơn hàng</h2>
+                <span class="close" onclick="closeOrderDetailModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="orderDetailContent">
+                <!-- Content will be loaded here -->
             </div>
         </div>
     </div>
@@ -261,12 +450,20 @@
                 const transformedOrders = orders.map(order => {
                     // Handle user_id - can be ObjectId string or populated object
                     let customerName = 'N/A';
+                    let customerPhone = 'N/A';
+                    
                     if (order.user_id) {
                         if (typeof order.user_id === 'object' && order.user_id !== null) {
-                            customerName = order.user_id.ho_ten || order.user_id.email || order.user_id.toString();
+                            // Nếu user_id đã được populate
+                            customerName = order.user_id.ho_ten || order.user_id.email || order.user_id.ten_dang_nhap || 'N/A';
+                            customerPhone = order.user_id.so_dien_thoai || order.so_dien_thoai || 'N/A';
                         } else {
-                            customerName = order.user_id.toString();
+                            // Nếu user_id chỉ là string ID
+                            customerName = 'N/A';
+                            customerPhone = order.so_dien_thoai || 'N/A';
                         }
+                    } else {
+                        customerPhone = order.so_dien_thoai || 'N/A';
                     }
                     
                     return {
@@ -274,12 +471,13 @@
                         _id: order._id || order.id,
                         customer: customerName,
                         customerId: typeof order.user_id === 'object' ? (order.user_id?._id || order.user_id) : order.user_id,
+                        customerPhone: customerPhone,
                         items: order.items || [],
                         total: order.tong_tien || 0,
                         date: order.createdAt || order.updatedAt || new Date(),
                         status: order.trang_thai || 'pending',
                         address: order.dia_chi_giao_hang || '',
-                        phone: order.so_dien_thoai || ''
+                        phone: customerPhone
                     };
                 });
                 
@@ -307,7 +505,7 @@
             tbody.innerHTML = '';
             
             if (orders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Chưa có đơn hàng nào trong database</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">Chưa có đơn hàng nào trong database</td></tr>';
                 return;
             }
             
@@ -320,6 +518,7 @@
                     .filter(Boolean)
                     .join(', ');
                 
+                const isCancelled = statusValue === 'cancelled';
                 row.innerHTML = `
                     <td>#${orderId}</td>
                     <td>${order.customer || 'N/A'}</td>
@@ -330,13 +529,21 @@
                     <td>
                         <select class="status-select ${statusValue}" 
                                 onchange="updateOrderStatus('${order.id || order._id}', this.value)"
-                                data-order-id="${order.id || order._id}">
+                                data-order-id="${order.id || order._id}"
+                                ${isCancelled ? 'disabled' : ''}
+                                title="${isCancelled ? 'Đơn hàng đã bị hủy, không thể cập nhật trạng thái' : ''}">
                             <option value="pending" ${statusValue === 'pending' ? 'selected' : ''}>Chờ xử lý</option>
                             <option value="confirmed" ${statusValue === 'confirmed' ? 'selected' : ''}>Đã xác nhận</option>
                             <option value="shipping" ${statusValue === 'shipping' ? 'selected' : ''}>Đang vận chuyển</option>
                             <option value="delivered" ${statusValue === 'delivered' ? 'selected' : ''}>Hoàn thành</option>
                             <option value="cancelled" ${statusValue === 'cancelled' ? 'selected' : ''}>Hủy đơn hàng</option>
                         </select>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-view" onclick="viewOrderDetails('${order.id || order._id}')">Xem chi tiết</button>
+                            <button class="btn-delete" onclick="deleteOrder('${order.id || order._id}')">Xóa</button>
+                        </div>
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -387,6 +594,18 @@
         // Update order status
         async function updateOrderStatus(orderId, newStatus) {
             try {
+                // Kiểm tra nếu đơn hàng đã bị hủy
+                const order = allOrders.find(o => (o.id || o._id) === orderId);
+                if (order && order.status === 'cancelled') {
+                    alert('Không thể cập nhật trạng thái đơn hàng đã bị hủy!');
+                    // Reset select về giá trị cũ
+                    const select = document.querySelector(`select[data-order-id="${orderId}"]`);
+                    if (select) {
+                        select.value = 'cancelled';
+                    }
+                    return;
+                }
+                
                 console.log(`Updating order ${orderId} to status: ${newStatus}`);
                 
                 const response = await apiCall(`/order/${orderId}/status`, {
@@ -396,7 +615,6 @@
                 
                 if (response.success) {
                     // Update local data
-                    const order = allOrders.find(o => (o.id || o._id) === orderId);
                     if (order) {
                         order.status = newStatus;
                     }
@@ -405,6 +623,11 @@
                     const select = document.querySelector(`select[data-order-id="${orderId}"]`);
                     if (select) {
                         select.className = `status-select ${newStatus}`;
+                        // Nếu trạng thái mới là cancelled, disable select
+                        if (newStatus === 'cancelled') {
+                            select.disabled = true;
+                            select.title = 'Đơn hàng đã bị hủy, không thể cập nhật trạng thái';
+                        }
                     }
                     
                     alert('Cập nhật trạng thái đơn hàng thành công!');
@@ -421,6 +644,196 @@
             }
         }
         
+        // View order details
+        async function viewOrderDetails(orderId) {
+            const modal = document.getElementById('orderDetailModal');
+            const content = document.getElementById('orderDetailContent');
+            
+            // Show loading
+            content.innerHTML = '<div style="text-align: center; padding: 40px;"><p>Đang tải chi tiết đơn hàng...</p></div>';
+            modal.style.display = 'block';
+
+            try {
+                // Gọi API để lấy chi tiết đơn hàng đầy đủ
+                console.log(`Fetching order details for: ${orderId}`);
+                const response = await apiCall(`/order/${orderId}`);
+                
+                if (!response.success || !response.data) {
+                    throw new Error(response.message || 'Không thể lấy chi tiết đơn hàng');
+                }
+
+                const order = response.data;
+                
+                // Get status text
+                const statusTexts = {
+                    'pending': 'Chờ xử lý',
+                    'confirmed': 'Đã xác nhận',
+                    'shipping': 'Đang vận chuyển',
+                    'delivered': 'Hoàn thành',
+                    'cancelled': 'Đã hủy'
+                };
+
+                // Xử lý thông tin khách hàng từ user_id
+                let customerName = 'N/A';
+                let customerPhone = 'N/A';
+                
+                if (order.user_id) {
+                    if (typeof order.user_id === 'object' && order.user_id !== null) {
+                        // Nếu user_id đã được populate
+                        customerName = order.user_id.ho_ten || order.user_id.email || order.user_id.ten_dang_nhap || 'N/A';
+                        customerPhone = order.user_id.so_dien_thoai || order.so_dien_thoai || 'N/A';
+                    } else {
+                        // Nếu user_id chỉ là string ID
+                        customerName = 'N/A';
+                        customerPhone = order.so_dien_thoai || 'N/A';
+                    }
+                } else {
+                    // Nếu không có user_id, lấy từ order.so_dien_thoai
+                    customerPhone = order.so_dien_thoai || 'N/A';
+                }
+
+                // Build items HTML
+                let itemsHTML = '';
+                if (order.items && order.items.length > 0) {
+                    order.items.forEach(item => {
+                        const itemName = item.ten_san_pham || item.product_name || item.name || 'N/A';
+                        const quantity = item.so_luong || item.quantity || 1;
+                        const size = item.kich_thuoc || item.size || 'N/A';
+                        const price = item.gia || item.price || 0;
+                        const total = price * quantity;
+
+                        itemsHTML += `
+                            <div class="item-card">
+                                <div class="item-name">${itemName}</div>
+                                <div class="item-details">
+                                    <span><strong>Số lượng:</strong> ${quantity}</span>
+                                    <span><strong>Size:</strong> ${size}</span>
+                                    <span><strong>Giá:</strong> ${formatCurrency(price)}</span>
+                                    <span><strong>Thành tiền:</strong> ${formatCurrency(total)}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    itemsHTML = '<p>Không có sản phẩm nào trong đơn hàng.</p>';
+                }
+
+                content.innerHTML = `
+                    <div class="order-detail-section">
+                        <h3>Thông tin đơn hàng</h3>
+                        <div class="detail-row">
+                            <div class="detail-label">Mã đơn hàng:</div>
+                            <div class="detail-value">#${String(order._id || order.id || '').substring(0, 8)}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Ngày đặt:</div>
+                            <div class="detail-value">${formatDate(order.createdAt || order.date)}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Trạng thái:</div>
+                            <div class="detail-value">
+                                <span class="status-select ${order.trang_thai || order.status}" style="display: inline-block; padding: 4px 10px;">
+                                    ${statusTexts[order.trang_thai || order.status] || (order.trang_thai || order.status)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="order-detail-section">
+                        <h3>Thông tin khách hàng</h3>
+                        <div class="detail-row">
+                            <div class="detail-label">Tên khách hàng:</div>
+                            <div class="detail-value">${customerName}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Số điện thoại:</div>
+                            <div class="detail-value">${customerPhone}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Địa chỉ giao hàng:</div>
+                            <div class="detail-value">${order.dia_chi_giao_hang || order.address || 'N/A'}</div>
+                        </div>
+                    </div>
+
+                    <div class="order-detail-section">
+                        <h3>Sản phẩm trong đơn hàng</h3>
+                        <div class="items-list">
+                            ${itemsHTML}
+                        </div>
+                    </div>
+
+                    <div class="total-section">
+                        <div class="detail-row" style="border: none; padding: 0;">
+                            <div class="detail-label" style="font-size: 18px; font-weight: 600;">Tổng tiền:</div>
+                            <div class="total-amount">${formatCurrency(order.tong_tien || order.total || 0)}</div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error loading order details:', error);
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <p style="color: #dc3545;">Lỗi: ${error.message || 'Không thể tải chi tiết đơn hàng'}</p>
+                        <button class="btn-view" onclick="closeOrderDetailModal()" style="margin-top: 20px;">Đóng</button>
+                    </div>
+                `;
+            }
+        }
+
+        // Close order detail modal
+        function closeOrderDetailModal() {
+            const modal = document.getElementById('orderDetailModal');
+            modal.style.display = 'none';
+        }
+
+        // Delete order
+        async function deleteOrder(orderId) {
+            const order = allOrders.find(o => (o.id || o._id) === orderId);
+            if (!order) {
+                alert('Không tìm thấy đơn hàng!');
+                return;
+            }
+
+            const orderIdShort = String(orderId).substring(0, 8);
+            if (!confirm(`Bạn có chắc chắn muốn xóa đơn hàng #${orderIdShort}?\n\nHành động này không thể hoàn tác!`)) {
+                return;
+            }
+
+            try {
+                console.log(`Deleting order ${orderId}`);
+                
+                const response = await apiCall(`/order/${orderId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.success) {
+                    alert('Xóa đơn hàng thành công!');
+                    // Remove from local data
+                    allOrders = allOrders.filter(o => (o.id || o._id) !== orderId);
+                    // Reload display
+                    loadOrdersData();
+                } else {
+                    throw new Error(response.message || 'Không thể xóa đơn hàng');
+                }
+            } catch (error) {
+                console.error('Error deleting order:', error);
+                // If DELETE endpoint doesn't exist, try alternative
+                if (error.message.includes('404') || error.message.includes('Not Found')) {
+                    alert('API endpoint xóa đơn hàng chưa được triển khai. Vui lòng liên hệ developer để thêm chức năng này vào backend.');
+                } else {
+                    alert('Lỗi: ' + (error.message || 'Không thể xóa đơn hàng'));
+                }
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('orderDetailModal');
+            if (event.target === modal) {
+                closeOrderDetailModal();
+            }
+        }
+
         // Load on page load
         document.addEventListener('DOMContentLoaded', loadOrdersData);
     </script>

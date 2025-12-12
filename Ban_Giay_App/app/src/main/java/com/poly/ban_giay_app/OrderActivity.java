@@ -3,14 +3,18 @@ package com.poly.ban_giay_app;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
@@ -368,12 +372,65 @@ public class OrderActivity extends AppCompatActivity {
     }
 
     private void cancelOrder(OrderResponse order) {
+        showCancelOrderDialog(order);
+    }
+
+    private void showCancelOrderDialog(OrderResponse order) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_cancel_order, null);
+        builder.setView(dialogView);
+
+        RadioGroup radioGroupReasons = dialogView.findViewById(R.id.radioGroupReasons);
+        TextView btnClose = dialogView.findViewById(R.id.btnClose);
+        Button btnCancel = dialogView.findViewById(R.id.btnCancel);
+        Button btnConfirm = dialogView.findViewById(R.id.btnConfirm);
+
+        AlertDialog dialog = builder.create();
+        dialog.setCancelable(true);
+
+        // Đóng dialog khi click nút X
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        // Đóng dialog khi click "Không"
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+
+        // Enable/disable nút xác nhận dựa trên việc chọn lý do
+        radioGroupReasons.setOnCheckedChangeListener((group, checkedId) -> {
+            btnConfirm.setEnabled(checkedId != -1);
+            if (checkedId != -1) {
+                btnConfirm.setAlpha(1.0f);
+            } else {
+                btnConfirm.setAlpha(0.5f);
+            }
+        });
+
+        // Xác nhận hủy đơn
+        btnConfirm.setOnClickListener(v -> {
+            int selectedId = radioGroupReasons.getCheckedRadioButtonId();
+            if (selectedId == -1) {
+                Toast.makeText(this, "Vui lòng chọn lý do hủy đơn hàng", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            RadioButton selectedRadio = dialogView.findViewById(selectedId);
+            String lyDo = selectedRadio.getText().toString();
+            dialog.dismiss();
+            performCancelOrder(order, lyDo);
+        });
+
+        dialog.show();
+    }
+
+    private void performCancelOrder(OrderResponse order, String lyDo) {
         if (!NetworkUtils.isConnected(this)) {
             Toast.makeText(this, "Không có kết nối mạng", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        apiService.cancelOrder(order.getId()).enqueue(new Callback<BaseResponse<OrderResponse>>() {
+        com.poly.ban_giay_app.network.request.CancelOrderRequest cancelRequest = 
+            new com.poly.ban_giay_app.network.request.CancelOrderRequest(lyDo);
+        
+        apiService.cancelOrder(order.getId(), cancelRequest).enqueue(new Callback<BaseResponse<OrderResponse>>() {
             @Override
             public void onResponse(Call<BaseResponse<OrderResponse>> call, Response<BaseResponse<OrderResponse>> response) {
                 if (response.isSuccessful() && response.body() != null) {

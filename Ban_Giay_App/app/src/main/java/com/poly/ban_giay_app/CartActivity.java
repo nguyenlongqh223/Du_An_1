@@ -533,8 +533,9 @@ public class CartActivity extends AppCompatActivity {
                             // Tạo danh sách mới thay vì clear và add vào list cũ
                             List<CartItem> newCartItems = new ArrayList<>();
                             
-                            // Convert CartItemResponse to CartItem
+                            // Convert CartItemResponse to CartItem và merge các item giống nhau
                             int addedCount = 0;
+                            int mergedCount = 0;
                             int skippedCount = 0;
                             Log.d("CartActivity", "Processing " + cartResponse.getItems().size() + " items from server");
                             
@@ -551,24 +552,48 @@ public class CartActivity extends AppCompatActivity {
                                     // Convert ProductResponse to Product
                                     Product product = convertToProduct(productResponse);
                                     
-                                    if (product != null) {
-                                        // Create CartItem với giá từ server
+                                    if (product != null && product.id != null && !product.id.isEmpty()) {
+                                        String itemSize = itemResponse.getKichThuoc() != null ? itemResponse.getKichThuoc() : "";
+                                        int itemQuantity = itemResponse.getSoLuong() != null ? itemResponse.getSoLuong() : 1;
                                         long itemGia = itemResponse.getGia() != null ? itemResponse.getGia() : 0;
-                                    CartItem cartItem = new CartItem(
-                                        product,
-                                        itemResponse.getKichThuoc() != null ? itemResponse.getKichThuoc() : "",
-                                        itemResponse.getSoLuong() != null ? itemResponse.getSoLuong() : 1,
-                                        itemGia,
-                                        itemResponse.getId()
-                                    );
-                                        Log.d("CartActivity", "Created CartItem with gia: " + itemGia + ", quantity: " + cartItem.quantity + ", total: " + cartItem.getTotalPrice());
                                         
-                                        newCartItems.add(cartItem);
-                                        addedCount++;
-                                        Log.d("CartActivity", "✅ Added item: " + product.name + " x" + cartItem.quantity);
+                                        // Kiểm tra xem đã có item nào với cùng product ID và size chưa
+                                        CartItem existingItem = null;
+                                        for (CartItem cartItem : newCartItems) {
+                                            if (cartItem.product != null && 
+                                                cartItem.product.id != null && 
+                                                cartItem.product.id.equals(product.id) &&
+                                                cartItem.size != null &&
+                                                cartItem.size.equals(itemSize)) {
+                                                existingItem = cartItem;
+                                                break;
+                                            }
+                                        }
+                                        
+                                        if (existingItem != null) {
+                                            // Merge: tăng số lượng của item đã có
+                                            existingItem.quantity += itemQuantity;
+                                            mergedCount++;
+                                            Log.d("CartActivity", "✅ Merged item: " + product.name + " (Size: " + itemSize + 
+                                                  "). New quantity: " + existingItem.quantity);
+                                        } else {
+                                            // Tạo item mới
+                                            CartItem cartItem = new CartItem(
+                                                product,
+                                                itemSize,
+                                                itemQuantity,
+                                                itemGia,
+                                                itemResponse.getId()
+                                            );
+                                            Log.d("CartActivity", "Created CartItem with gia: " + itemGia + ", quantity: " + cartItem.quantity + ", total: " + cartItem.getTotalPrice());
+                                            
+                                            newCartItems.add(cartItem);
+                                            addedCount++;
+                                            Log.d("CartActivity", "✅ Added new item: " + product.name + " x" + cartItem.quantity + " (Size: " + itemSize + ")");
+                                        }
                                     } else {
                                         skippedCount++;
-                                        Log.e("CartActivity", "❌ Failed to convert ProductResponse to Product");
+                                        Log.e("CartActivity", "❌ Failed to convert ProductResponse to Product or product ID is null");
                                     }
                                     } else {
                                         skippedCount++;
@@ -581,7 +606,9 @@ public class CartActivity extends AppCompatActivity {
                                 }
                             }
                             
-                            Log.d("CartActivity", "Processed items - Added: " + addedCount + ", Skipped: " + skippedCount);
+                            Log.d("CartActivity", "Processed items - Added: " + addedCount + ", Merged: " + mergedCount + ", Skipped: " + skippedCount);
+                            
+                            Log.d("CartActivity", "Processed items - Added: " + addedCount + ", Merged: " + mergedCount + ", Skipped: " + skippedCount);
                             
                             // Cập nhật cart manager với danh sách mới
                             if (cartManager != null) {
@@ -593,7 +620,7 @@ public class CartActivity extends AppCompatActivity {
                                 Log.d("CartActivity", "✅ Cart now has " + cartManager.getCartItems().size() + " items visible");
                             }
                             
-                            Log.d("CartActivity", "✅ Loaded " + addedCount + " items from server. Total in cart: " + (cartManager != null ? cartManager.getCartItems().size() : 0));
+                            Log.d("CartActivity", "✅ Loaded " + (addedCount + mergedCount) + " items from server (Added: " + addedCount + ", Merged: " + mergedCount + "). Total unique items in cart: " + (cartManager != null ? cartManager.getCartItems().size() : 0));
                             
                             // Log từng item để debug
                             for (int i = 0; i < newCartItems.size(); i++) {

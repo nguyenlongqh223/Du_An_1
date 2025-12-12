@@ -7,6 +7,7 @@ const ProductController = require("../controllers/product.controller");
 router.get("/", ProductController.getAllProducts);
 router.get("/best-selling", ProductController.getBestSellingProducts);
 router.get("/newest", ProductController.getNewestProducts);
+router.get("/hot-trend", ProductController.getHotTrendProducts);
 router.get("/category/:danh_muc", ProductController.getProductsByCategory);
 router.post("/", ProductController.createProduct);
 router.get("/:id", ProductController.getProductById);
