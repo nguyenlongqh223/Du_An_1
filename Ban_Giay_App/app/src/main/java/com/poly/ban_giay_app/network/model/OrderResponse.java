@@ -34,6 +34,12 @@ public class OrderResponse {
     @SerializedName("ghi_chu")
     private String ghiChu;
 
+    @SerializedName("ten_khach_hang")
+    private String tenKhachHang;
+
+    @SerializedName("ho_ten")
+    private String hoTen;
+
     @SerializedName("createdAt")
     private String createdAt;
 
@@ -193,6 +199,26 @@ public class OrderResponse {
 
     public void setGhiChu(String ghiChu) {
         this.ghiChu = ghiChu;
+    }
+
+    public String getTenKhachHang() {
+        // Ưu tiên ten_khach_hang, sau đó ho_ten
+        if (tenKhachHang != null && !tenKhachHang.isEmpty()) {
+            return tenKhachHang;
+        }
+        return hoTen != null ? hoTen : null;
+    }
+
+    public void setTenKhachHang(String tenKhachHang) {
+        this.tenKhachHang = tenKhachHang;
+    }
+
+    public String getHoTen() {
+        return hoTen;
+    }
+
+    public void setHoTen(String hoTen) {
+        this.hoTen = hoTen;
     }
 
     public String getCreatedAt() {

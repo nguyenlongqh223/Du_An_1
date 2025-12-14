@@ -1,20 +1,31 @@
 package com.poly.ban_giay_app.network.model;
 
+import com.google.gson.annotations.SerializedName;
+
 import java.util.List;
 
 public class NotificationListResponse {
+    @SerializedName("notifications")
     private List<NotificationResponse> notifications;
 
+    @SerializedName("data")
+    private List<NotificationResponse> data;
+
     public List<NotificationResponse> getNotifications() {
-        return notifications;
+        // Ưu tiên notifications, sau đó data
+        if (notifications != null && !notifications.isEmpty()) {
+            return notifications;
+        }
+        return data;
     }
 
     public int getUnreadCount() {
-        if (notifications == null) {
+        List<NotificationResponse> list = getNotifications();
+        if (list == null) {
             return 0;
         }
         int count = 0;
-        for (NotificationResponse notification : notifications) {
+        for (NotificationResponse notification : list) {
             if (notification != null && !notification.isRead()) {
                 count++;
             }

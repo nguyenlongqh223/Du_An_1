@@ -3,8 +3,14 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="12dp"
-    android:background="@android:color/white">
+    android:padding="16dp"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp"
+    android:background="@android:color/white"
+    android:minHeight="80dp"
+    android:layout_marginBottom="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -21,14 +27,16 @@
             android:textSize="15sp"
             android:textStyle="bold"
             android:maxLines="2"
-            android:ellipsize="end" />
+            android:ellipsize="end"
+            android:text="Title" />
 
         <TextView
             android:id="@+id/tvTime"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="#888888"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            android:text="Time" />
     </LinearLayout>
 
     <TextView
@@ -39,7 +47,8 @@
         android:textColor="#4A4A4A"
         android:textSize="14sp"
         android:maxLines="3"
-        android:ellipsize="end" />
+        android:ellipsize="end"
+        android:text="Message" />
 
     <View
         android:layout_width="match_parent"

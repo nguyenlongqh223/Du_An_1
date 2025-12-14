@@ -1,13 +1,12 @@
 package com.poly.ban_giay_app;
 
-import android.content.Intent;
+import android.app.AlertDialog;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -15,8 +14,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.cardview.widget.CardView;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -29,6 +29,7 @@ import com.poly.ban_giay_app.network.model.BaseResponse;
 import com.poly.ban_giay_app.network.model.OrderResponse;
 import com.poly.ban_giay_app.network.request.CancelOrderRequest;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -38,26 +39,28 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class OrderDetailActivity extends AppCompatActivity {
+    private static final String TAG = "OrderDetailActivity";
+    
+    private Toolbar toolbar;
+    private ProgressBar progressBar;
+    private TextView tvEmpty;
+    private CardView cardOrderInfo, cardProducts, cardDelivery;
     private TextView txtOrderId, txtOrderStatus, txtOrderDate, txtOrderTotal;
-    private TextView txtDeliveryAddress, txtPhoneNumber, txtNote;
+    private TextView txtCustomerName, txtDeliveryAddress, txtDeliveryPhone, txtNote;
     private RecyclerView rvOrderItems;
     private Button btnCancelOrder;
-    private ImageView btnBack;
-    private LinearLayout layoutOrderInfo, layoutProducts, layoutDelivery, layoutTotal;
-    private ProgressBar progressBar;
-    private TextView txtEmpty;
     
-    private String orderId;
-    private OrderResponse order;
     private ApiService apiService;
-    private SessionManager sessionManager;
+    private String orderId;
+    private OrderItemAdapter orderItemAdapter;
+    private OrderResponse currentOrder;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_order_detail);
 
-        // Lấy order_id từ intent
+        // Get order ID from intent
         orderId = getIntent().getStringExtra("order_id");
         if (orderId == null || orderId.isEmpty()) {
             Toast.makeText(this, "Không tìm thấy thông tin đơn hàng", Toast.LENGTH_SHORT).show();
@@ -65,232 +68,289 @@ public class OrderDetailActivity extends AppCompatActivity {
             return;
         }
 
-        sessionManager = new SessionManager(this);
         ApiClient.init(this);
         apiService = ApiClient.getApiService();
 
         initViews();
-        setupNavigation();
+        setupToolbar();
+        setupRecyclerView();
         loadOrderDetails();
     }
 
     private void initViews() {
-        btnBack = findViewById(R.id.btnBack);
+        toolbar = findViewById(R.id.toolbar);
+        progressBar = findViewById(R.id.progressBar);
+        tvEmpty = findViewById(R.id.tvEmpty);
+        
+        cardOrderInfo = findViewById(R.id.cardOrderInfo);
+        cardProducts = findViewById(R.id.cardProducts);
+        cardDelivery = findViewById(R.id.cardDelivery);
+        
         txtOrderId = findViewById(R.id.txtOrderId);
         txtOrderStatus = findViewById(R.id.txtOrderStatus);
         txtOrderDate = findViewById(R.id.txtOrderDate);
         txtOrderTotal = findViewById(R.id.txtOrderTotal);
+        
+        txtCustomerName = findViewById(R.id.txtCustomerName);
         txtDeliveryAddress = findViewById(R.id.txtDeliveryAddress);
-        txtPhoneNumber = findViewById(R.id.txtPhoneNumber);
+        txtDeliveryPhone = findViewById(R.id.txtDeliveryPhone);
         txtNote = findViewById(R.id.txtNote);
+        
         rvOrderItems = findViewById(R.id.rvOrderItems);
         btnCancelOrder = findViewById(R.id.btnCancelOrder);
-        progressBar = findViewById(R.id.progressBar);
-        txtEmpty = findViewById(R.id.txtEmpty);
         
-        layoutOrderInfo = findViewById(R.id.layoutOrderInfo);
-        layoutProducts = findViewById(R.id.layoutProducts);
-        layoutDelivery = findViewById(R.id.layoutDelivery);
-        layoutTotal = findViewById(R.id.layoutTotal);
-
-        rvOrderItems.setLayoutManager(new LinearLayoutManager(this));
+        btnCancelOrder.setOnClickListener(v -> {
+            if (currentOrder != null) {
+                showCancelOrderDialog(currentOrder);
+            } else {
+                Toast.makeText(this, "Không tìm thấy thông tin đơn hàng", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
-    private void setupNavigation() {
-        if (btnBack != null) {
-            btnBack.setOnClickListener(v -> finish());
+    private void setupToolbar() {
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setDisplayShowHomeEnabled(true);
         }
+        toolbar.setNavigationOnClickListener(v -> finish());
+    }
 
-        if (btnCancelOrder != null) {
-            btnCancelOrder.setOnClickListener(v -> {
-                if (order != null) {
-                    showCancelOrderDialog();
-                }
-            });
-        }
+    private void setupRecyclerView() {
+        rvOrderItems.setLayoutManager(new LinearLayoutManager(this));
+        orderItemAdapter = new OrderItemAdapter();
+        rvOrderItems.setAdapter(orderItemAdapter);
     }
 
     private void loadOrderDetails() {
         if (!NetworkUtils.isConnected(this)) {
             Toast.makeText(this, "Không có kết nối mạng", Toast.LENGTH_SHORT).show();
-            showEmpty(true);
+            showEmpty();
             return;
         }
 
-        showLoading(true);
+        progressBar.setVisibility(View.VISIBLE);
+        tvEmpty.setVisibility(View.GONE);
+        hideAllCards();
+
+        Log.d(TAG, "Loading order details for ID: " + orderId);
         
         apiService.getOrderById(orderId).enqueue(new Callback<BaseResponse<OrderResponse>>() {
             @Override
             public void onResponse(Call<BaseResponse<OrderResponse>> call, Response<BaseResponse<OrderResponse>> response) {
-                showLoading(false);
+                progressBar.setVisibility(View.GONE);
                 
-                if (response.isSuccessful() && response.body() != null && response.body().getSuccess()) {
-                    order = response.body().getData();
-                    if (order != null) {
-                        displayOrderDetails();
+                if (response.isSuccessful() && response.body() != null) {
+                    BaseResponse<OrderResponse> body = response.body();
+                    if (body.getSuccess() && body.getData() != null) {
+                        OrderResponse order = body.getData();
+                        displayOrderDetails(order);
                     } else {
-                        showEmpty(true);
-                        Toast.makeText(OrderDetailActivity.this, "Không tìm thấy thông tin đơn hàng", Toast.LENGTH_SHORT).show();
+                        Log.e(TAG, "Failed to load order: " + body.getMessage());
+                        Toast.makeText(OrderDetailActivity.this, 
+                            body.getMessage() != null ? body.getMessage() : "Không thể tải thông tin đơn hàng",
+                            Toast.LENGTH_SHORT).show();
+                        showEmpty();
                     }
                 } else {
-                    showEmpty(true);
+                    Log.e(TAG, "Response not successful. Code: " + response.code());
                     String errorMsg = NetworkUtils.extractErrorMessage(response);
-                    Toast.makeText(OrderDetailActivity.this, errorMsg != null ? errorMsg : "Không thể tải chi tiết đơn hàng", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(OrderDetailActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                    showEmpty();
                 }
             }
 
             @Override
             public void onFailure(Call<BaseResponse<OrderResponse>> call, Throwable t) {
-                showLoading(false);
-                showEmpty(true);
-                Log.e("OrderDetailActivity", "Error loading order details", t);
+                progressBar.setVisibility(View.GONE);
+                Log.e(TAG, "Error loading order details", t);
                 Toast.makeText(OrderDetailActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                showEmpty();
             }
         });
     }
 
-    private void displayOrderDetails() {
-        if (order == null) return;
-
-        showEmpty(false);
-
-        // Mã đơn hàng
-        String orderIdDisplay = order.getId();
-        if (orderIdDisplay != null && orderIdDisplay.length() > 8) {
-            orderIdDisplay = orderIdDisplay.substring(orderIdDisplay.length() - 8).toUpperCase();
+    private void displayOrderDetails(OrderResponse order) {
+        // Save current order for cancel action
+        currentOrder = order;
+        // Order ID
+        String orderIdShort = order.getId();
+        if (orderIdShort != null && orderIdShort.length() > 8) {
+            orderIdShort = orderIdShort.substring(orderIdShort.length() - 8).toUpperCase();
         }
-        txtOrderId.setText("Đơn hàng #" + (orderIdDisplay != null ? orderIdDisplay : "N/A"));
+        txtOrderId.setText("Đơn hàng #" + (orderIdShort != null ? orderIdShort : "N/A"));
 
-        // Trạng thái
+        // Status
         String trangThai = order.getTrangThai();
         String trangThaiDisplay = order.getTrangThaiDisplay();
         txtOrderStatus.setText(trangThaiDisplay);
         
-        // Màu sắc cho trạng thái
+        // Set status color
         int statusColor;
-        switch (trangThai != null ? trangThai : "") {
-            case "pending":
-                statusColor = ContextCompat.getColor(this, android.R.color.holo_orange_dark);
-                break;
-            case "confirmed":
-                statusColor = ContextCompat.getColor(this, android.R.color.holo_blue_dark);
-                break;
-            case "shipping":
-                statusColor = ContextCompat.getColor(this, android.R.color.holo_blue_light);
-                break;
-            case "delivered":
-                statusColor = ContextCompat.getColor(this, android.R.color.holo_green_dark);
-                break;
-            case "cancelled":
-                statusColor = ContextCompat.getColor(this, android.R.color.holo_red_dark);
-                break;
-            default:
-                statusColor = ContextCompat.getColor(this, android.R.color.darker_gray);
+        if (trangThai != null) {
+            switch (trangThai) {
+                case "pending":
+                    statusColor = getResources().getColor(android.R.color.holo_orange_dark, null);
+                    break;
+                case "confirmed":
+                    statusColor = getResources().getColor(android.R.color.holo_blue_dark, null);
+                    break;
+                case "shipping":
+                    statusColor = getResources().getColor(android.R.color.holo_blue_light, null);
+                    break;
+                case "delivered":
+                    statusColor = getResources().getColor(android.R.color.holo_green_dark, null);
+                    break;
+                case "cancelled":
+                    statusColor = getResources().getColor(android.R.color.holo_red_dark, null);
+                    break;
+                default:
+                    statusColor = getResources().getColor(android.R.color.darker_gray, null);
+            }
+        } else {
+            statusColor = getResources().getColor(android.R.color.darker_gray, null);
         }
         txtOrderStatus.setTextColor(statusColor);
 
-        // Ngày đặt hàng
-        if (order.getCreatedAt() != null) {
-            try {
-                SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
-                SimpleDateFormat outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
-                Date date = inputFormat.parse(order.getCreatedAt());
-                if (date != null) {
-                    txtOrderDate.setText("Ngày đặt: " + outputFormat.format(date));
-                } else {
-                    txtOrderDate.setText("Ngày đặt: " + order.getCreatedAt());
-                }
-            } catch (Exception e) {
-                txtOrderDate.setText("Ngày đặt: " + order.getCreatedAt());
-            }
-        } else {
-            txtOrderDate.setText("Ngày đặt: N/A");
-        }
+        // Date
+        String dateStr = formatDate(order.getCreatedAt());
+        txtOrderDate.setText("Ngày đặt: " + dateStr);
 
-        // Tổng tiền
-        if (order.getTongTien() != null) {
-            txtOrderTotal.setText(formatPrice(order.getTongTien()));
+        // Total
+        Integer tongTien = order.getTongTien();
+        if (tongTien != null) {
+            txtOrderTotal.setText(formatPrice(tongTien));
         } else {
             txtOrderTotal.setText("0₫");
         }
 
-        // Địa chỉ giao hàng
+        // Products
+        if (order.getItems() != null && !order.getItems().isEmpty()) {
+            orderItemAdapter.setItems(order.getItems());
+            cardProducts.setVisibility(View.VISIBLE);
+        } else {
+            cardProducts.setVisibility(View.GONE);
+        }
+
+        // Delivery info
+        String tenKhachHang = order.getTenKhachHang();
         String diaChi = order.getDiaChiGiaoHang();
-        if (diaChi != null && !diaChi.isEmpty()) {
-            txtDeliveryAddress.setText(diaChi);
-            txtDeliveryAddress.setVisibility(View.VISIBLE);
-        } else {
-            txtDeliveryAddress.setText("Chưa có thông tin");
-            txtDeliveryAddress.setVisibility(View.VISIBLE);
-        }
-
-        // Số điện thoại
-        String phone = order.getSoDienThoai();
-        if (phone != null && !phone.isEmpty()) {
-            txtPhoneNumber.setText(phone);
-            txtPhoneNumber.setVisibility(View.VISIBLE);
-        } else {
-            txtPhoneNumber.setText("Chưa có thông tin");
-            txtPhoneNumber.setVisibility(View.VISIBLE);
-        }
-
-        // Ghi chú
+        String soDienThoai = order.getSoDienThoai();
         String ghiChu = order.getGhiChu();
+
+        // Customer name - ưu tiên từ order, nếu không có thì lấy từ SessionManager
+        if (tenKhachHang != null && !tenKhachHang.isEmpty()) {
+            txtCustomerName.setText("Tên khách hàng: " + tenKhachHang);
+        } else {
+            // Thử lấy từ SessionManager nếu đơn hàng là của user hiện tại
+            SessionManager sessionManager = new SessionManager(this);
+            if (sessionManager.isLoggedIn()) {
+                String currentUserId = sessionManager.getUserId();
+                String orderUserId = order.getUserId();
+                if (currentUserId != null && orderUserId != null && currentUserId.equals(orderUserId)) {
+                    String userName = sessionManager.getUserName();
+                    if (userName != null && !userName.isEmpty()) {
+                        txtCustomerName.setText("Tên khách hàng: " + userName);
+                    } else {
+                        txtCustomerName.setText("Tên khách hàng: Chưa cập nhật");
+                    }
+                } else {
+                    txtCustomerName.setText("Tên khách hàng: Chưa cập nhật");
+                }
+            } else {
+                txtCustomerName.setText("Tên khách hàng: Chưa cập nhật");
+            }
+        }
+
+        if (diaChi != null && !diaChi.isEmpty()) {
+            txtDeliveryAddress.setText("Địa chỉ: " + diaChi);
+        } else {
+            txtDeliveryAddress.setText("Địa chỉ: Chưa cập nhật");
+        }
+
+        if (soDienThoai != null && !soDienThoai.isEmpty()) {
+            txtDeliveryPhone.setText("Số điện thoại: " + soDienThoai);
+        } else {
+            txtDeliveryPhone.setText("Số điện thoại: Chưa cập nhật");
+        }
+
         if (ghiChu != null && !ghiChu.isEmpty()) {
-            txtNote.setText(ghiChu);
+            txtNote.setText("Ghi chú: " + ghiChu);
             txtNote.setVisibility(View.VISIBLE);
         } else {
             txtNote.setVisibility(View.GONE);
         }
 
-        // Danh sách sản phẩm
-        if (order.getItems() != null && !order.getItems().isEmpty()) {
-            OrderItemAdapter adapter = new OrderItemAdapter(order.getItems());
-            rvOrderItems.setAdapter(adapter);
-            rvOrderItems.setVisibility(View.VISIBLE);
-        } else {
-            rvOrderItems.setVisibility(View.GONE);
-        }
-
-        // Hiển thị nút hủy đơn chỉ khi ở trạng thái pending hoặc confirmed
-        if ("pending".equals(trangThai) || "confirmed".equals(trangThai)) {
+        // Show cancel button only for pending or confirmed orders
+        if (trangThai != null && (trangThai.equals("pending") || trangThai.equals("confirmed"))) {
             btnCancelOrder.setVisibility(View.VISIBLE);
         } else {
             btnCancelOrder.setVisibility(View.GONE);
         }
+
+        // Show all cards
+        cardOrderInfo.setVisibility(View.VISIBLE);
+        cardDelivery.setVisibility(View.VISIBLE);
     }
 
-    private void showCancelOrderDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+    private void hideAllCards() {
+        cardOrderInfo.setVisibility(View.GONE);
+        cardProducts.setVisibility(View.GONE);
+        cardDelivery.setVisibility(View.GONE);
+    }
+
+    private void showEmpty() {
+        tvEmpty.setVisibility(View.VISIBLE);
+        hideAllCards();
+    }
+
+    private String formatDate(String isoString) {
+        if (isoString == null || isoString.isEmpty()) {
+            return "N/A";
+        }
+        try {
+            SimpleDateFormat iso = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault());
+            Date date = iso.parse(isoString);
+            if (date == null) {
+                // Try without milliseconds
+                iso = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault());
+                date = iso.parse(isoString);
+            }
+            if (date != null) {
+                SimpleDateFormat out = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
+                return out.format(date);
+            }
+        } catch (ParseException e) {
+            Log.e(TAG, "Error parsing date: " + isoString, e);
+        }
+        return isoString;
+    }
+
+    private String formatPrice(long price) {
+        return String.format("%,d₫", price).replace(",", ".");
+    }
+
+    private void showCancelOrderDialog(OrderResponse order) {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_cancel_order, null);
-        builder.setView(dialogView);
 
         RadioGroup radioGroupReasons = dialogView.findViewById(R.id.radioGroupReasons);
+        Button btnConfirmCancel = dialogView.findViewById(R.id.btnConfirmCancel);
         TextView btnClose = dialogView.findViewById(R.id.btnClose);
-        Button btnCancel = dialogView.findViewById(R.id.btnCancel);
-        Button btnConfirm = dialogView.findViewById(R.id.btnConfirm);
 
-        AlertDialog dialog = builder.create();
-        dialog.setCancelable(true);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create();
 
-        // Đóng dialog khi click nút X
         btnClose.setOnClickListener(v -> dialog.dismiss());
 
-        // Đóng dialog khi click "Không"
-        btnCancel.setOnClickListener(v -> dialog.dismiss());
-
-        // Enable/disable nút xác nhận dựa trên việc chọn lý do
         radioGroupReasons.setOnCheckedChangeListener((group, checkedId) -> {
-            btnConfirm.setEnabled(checkedId != -1);
-            if (checkedId != -1) {
-                btnConfirm.setAlpha(1.0f);
-            } else {
-                btnConfirm.setAlpha(0.5f);
-            }
+            btnConfirmCancel.setEnabled(checkedId != -1);
+            btnConfirmCancel.setBackgroundTintList(ContextCompat.getColorStateList(this, checkedId != -1 ? R.color.red : R.color.grey));
         });
 
-        // Xác nhận hủy đơn
-        btnConfirm.setOnClickListener(v -> {
+        btnConfirmCancel.setOnClickListener(v -> {
             int selectedId = radioGroupReasons.getCheckedRadioButtonId();
             if (selectedId == -1) {
                 Toast.makeText(this, "Vui lòng chọn lý do hủy đơn hàng", Toast.LENGTH_SHORT).show();
@@ -299,30 +359,42 @@ public class OrderDetailActivity extends AppCompatActivity {
 
             RadioButton selectedRadio = dialogView.findViewById(selectedId);
             String lyDo = selectedRadio.getText().toString();
+
+            Log.d(TAG, "Lý do hủy đơn hàng: " + lyDo);
+
             dialog.dismiss();
-            cancelOrder(lyDo);
+            cancelOrder(order, lyDo);
         });
 
         dialog.show();
     }
 
-    private void cancelOrder(String lyDo) {
+    private void cancelOrder(OrderResponse order, String lyDo) {
         if (!NetworkUtils.isConnected(this)) {
             Toast.makeText(this, "Không có kết nối mạng", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        CancelOrderRequest request = new CancelOrderRequest(lyDo);
-        apiService.cancelOrder(orderId, request).enqueue(new Callback<BaseResponse<OrderResponse>>() {
+        CancelOrderRequest cancelRequest = new CancelOrderRequest(lyDo);
+
+        Log.d(TAG, "Gửi yêu cầu hủy đơn hàng với lý do: " + lyDo);
+
+        apiService.cancelOrder(order.getId(), cancelRequest).enqueue(new Callback<BaseResponse<OrderResponse>>() {
             @Override
             public void onResponse(Call<BaseResponse<OrderResponse>> call, Response<BaseResponse<OrderResponse>> response) {
-                if (response.isSuccessful() && response.body() != null && response.body().getSuccess()) {
-                    Toast.makeText(OrderDetailActivity.this, "Đã hủy đơn hàng thành công", Toast.LENGTH_SHORT).show();
-                    // Reload để cập nhật trạng thái
-                    loadOrderDetails();
+                if (response.isSuccessful() && response.body() != null) {
+                    BaseResponse<OrderResponse> body = response.body();
+                    if (body.getSuccess()) {
+                        Toast.makeText(OrderDetailActivity.this, "Đã hủy đơn hàng thành công", Toast.LENGTH_SHORT).show();
+                        // Reload order details to update status
+                        loadOrderDetails();
+                    } else {
+                        Toast.makeText(OrderDetailActivity.this,
+                            body.getMessage() != null ? body.getMessage() : "Không thể hủy đơn hàng",
+                            Toast.LENGTH_SHORT).show();
+                    }
                 } else {
-                    String errorMsg = NetworkUtils.extractErrorMessage(response);
-                    Toast.makeText(OrderDetailActivity.this, errorMsg != null ? errorMsg : "Không thể hủy đơn hàng", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(OrderDetailActivity.this, NetworkUtils.extractErrorMessage(response), Toast.LENGTH_SHORT).show();
                 }
             }
 
@@ -333,34 +405,12 @@ public class OrderDetailActivity extends AppCompatActivity {
         });
     }
 
-    private void showLoading(boolean show) {
-        if (progressBar != null) {
-            progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            finish();
+            return true;
         }
-        if (show) {
-            showEmpty(false);
-        }
-    }
-
-    private void showEmpty(boolean empty) {
-        if (txtEmpty != null) {
-            txtEmpty.setVisibility(empty ? View.VISIBLE : View.GONE);
-        }
-        if (layoutOrderInfo != null) {
-            layoutOrderInfo.setVisibility(empty ? View.GONE : View.VISIBLE);
-        }
-        if (layoutProducts != null) {
-            layoutProducts.setVisibility(empty ? View.GONE : View.VISIBLE);
-        }
-        if (layoutDelivery != null) {
-            layoutDelivery.setVisibility(empty ? View.GONE : View.VISIBLE);
-        }
-        if (layoutTotal != null) {
-            layoutTotal.setVisibility(empty ? View.GONE : View.VISIBLE);
-        }
-    }
-
-    private String formatPrice(long price) {
-        return String.format("%,d₫", price).replace(",", ".");
+        return super.onOptionsItemSelected(item);
     }
 }

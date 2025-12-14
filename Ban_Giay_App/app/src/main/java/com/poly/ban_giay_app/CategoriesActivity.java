@@ -22,10 +22,14 @@ import com.poly.ban_giay_app.models.Product;
 import com.poly.ban_giay_app.network.ApiClient;
 import com.poly.ban_giay_app.network.ApiService;
 import com.poly.ban_giay_app.network.NetworkUtils;
+import com.poly.ban_giay_app.network.model.BaseResponse;
+import com.poly.ban_giay_app.network.model.CategoryResponse;
 import com.poly.ban_giay_app.network.model.ProductResponse;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -45,6 +49,12 @@ public class CategoriesActivity extends AppCompatActivity {
     private List<Product> menList = new ArrayList<>();
     private List<Product> womenList = new ArrayList<>();
     private ApiService apiService;
+    
+    // Dynamic category sections
+    private android.widget.LinearLayout layoutCategoriesContainer;
+    private Map<String, RecyclerView> categoryRecyclerViews = new HashMap<>();
+    private Map<String, ProductAdapter> categoryAdapters = new HashMap<>();
+    private Map<String, List<Product>> categoryProductLists = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,7 +88,10 @@ public class CategoriesActivity extends AppCompatActivity {
             btnBack.setOnClickListener(v -> finish());
         }
 
-        // Load products from API
+        // Load categories from API first, then load products
+        loadCategoriesFromApi();
+        
+        // Load top selling and hot trend products
         loadProductsFromApi();
     }
 
@@ -157,10 +170,269 @@ public class CategoriesActivity extends AppCompatActivity {
                 womenAdapter = new ProductAdapter(womenList);
                 rvWomen.setAdapter(womenAdapter);
             }
+            
+            // Khởi tạo container cho các danh mục động
+            // Tìm LinearLayout chứa các section (parent của layoutWomen)
+            View layoutWomen = findViewById(R.id.layoutWomen);
+            if (layoutWomen != null && layoutWomen.getParent() instanceof android.widget.LinearLayout) {
+                layoutCategoriesContainer = (android.widget.LinearLayout) layoutWomen.getParent();
+            }
         } catch (Exception e) {
             Log.e("CategoriesActivity", "Error initializing product lists", e);
             Toast.makeText(this, "Lỗi khởi tạo danh sách sản phẩm", Toast.LENGTH_SHORT).show();
         }
+    }
+    
+    private void loadCategoriesFromApi() {
+        if (!NetworkUtils.isConnected(this)) {
+            Log.e("CategoriesActivity", "No network connection - cannot load categories");
+            return;
+        }
+
+        Log.d("CategoriesActivity", "Loading categories from API...");
+        
+        // Load TẤT CẢ danh mục active
+        apiService.getCategories().enqueue(new Callback<BaseResponse<List<CategoryResponse>>>() {
+            @Override
+            public void onResponse(Call<BaseResponse<List<CategoryResponse>>> call, 
+                                 Response<BaseResponse<List<CategoryResponse>>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().getSuccess()) {
+                    List<CategoryResponse> categories = response.body().getData();
+                    Log.d("CategoriesActivity", "All categories loaded: " + (categories != null ? categories.size() : "null"));
+                    
+                    if (categories != null && !categories.isEmpty()) {
+                        // Lọc danh mục active và sắp xếp theo thu_tu
+                        List<CategoryResponse> activeCategories = new ArrayList<>();
+                        for (CategoryResponse category : categories) {
+                            if ("active".equals(category.getTrangThai())) {
+                                activeCategories.add(category);
+                                Log.d("CategoriesActivity", "Found active category: " + category.getTenDanhMuc());
+                            }
+                        }
+                        
+                        // Sắp xếp theo thu_tu (tăng dần)
+                        activeCategories.sort((a, b) -> {
+                            int orderA = a.getThuTu() != null ? a.getThuTu() : 0;
+                            int orderB = b.getThuTu() != null ? b.getThuTu() : 0;
+                            return Integer.compare(orderA, orderB);
+                        });
+                        
+                        runOnUiThread(() -> {
+                            // Xóa các section cũ (trừ các section có sẵn)
+                            clearDynamicCategorySections();
+                            
+                            // Ẩn section "Giày nữ" mặc định (sẽ hiện lại nếu có danh mục "nu")
+                            View layoutWomen = findViewById(R.id.layoutWomen);
+                            if (layoutWomen != null) {
+                                layoutWomen.setVisibility(View.GONE);
+                            }
+                            
+                            // Tạo section cho từng danh mục
+                            for (CategoryResponse category : activeCategories) {
+                                String categoryName = category.getTenDanhMuc();
+                                Log.d("CategoriesActivity", "Creating section for category: " + categoryName);
+                                
+                                // Kiểm tra xem có phải là danh mục "nam" hoặc "nu" không
+                                boolean isMen = "nam".equalsIgnoreCase(categoryName) || categoryName.toLowerCase().contains("nam");
+                                boolean isWomen = "nu".equalsIgnoreCase(categoryName) || "nữ".equalsIgnoreCase(categoryName) || categoryName.toLowerCase().contains("nu") || categoryName.toLowerCase().contains("nữ");
+                                
+                                if (isMen && rvMen != null) {
+                                    // Cập nhật title của section "Giày nam"
+                                    View layoutMen = findViewById(R.id.layoutMen);
+                                    if (layoutMen != null) {
+                                        TextView tvMenTitle = null;
+                                        // Tìm TextView trong layoutMen
+                                        for (int i = 0; i < ((android.widget.LinearLayout) layoutMen).getChildCount(); i++) {
+                                            View child = ((android.widget.LinearLayout) layoutMen).getChildAt(i);
+                                            if (child instanceof TextView) {
+                                                tvMenTitle = (TextView) child;
+                                                break;
+                                            }
+                                        }
+                                        if (tvMenTitle != null) {
+                                            tvMenTitle.setText(categoryName);
+                                        }
+                                    }
+                                    loadProductsByCategory(categoryName, categoryName, rvMen, menList, menAdapter);
+                                } else if (isWomen && rvWomen != null) {
+                                    // Hiển thị section "Giày nữ" và cập nhật title
+                                    if (layoutWomen != null) {
+                                        layoutWomen.setVisibility(View.VISIBLE);
+                                        TextView tvWomenTitle = null;
+                                        for (int i = 0; i < ((android.widget.LinearLayout) layoutWomen).getChildCount(); i++) {
+                                            View child = ((android.widget.LinearLayout) layoutWomen).getChildAt(i);
+                                            if (child instanceof TextView) {
+                                                tvWomenTitle = (TextView) child;
+                                                break;
+                                            }
+                                        }
+                                        if (tvWomenTitle != null) {
+                                            tvWomenTitle.setText(categoryName);
+                                        }
+                                    }
+                                    loadProductsByCategory(categoryName, categoryName, rvWomen, womenList, womenAdapter);
+                                } else {
+                                    // Các danh mục khác tạo section mới
+                                    createCategorySection(categoryName, categoryName);
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<BaseResponse<List<CategoryResponse>>> call, Throwable t) {
+                Log.e("CategoriesActivity", "Error loading categories: " + t.getMessage());
+            }
+        });
+    }
+    
+    private void loadProductsByCategory(String categoryName, String displayTitle, 
+                                       RecyclerView recyclerView, List<Product> productList, ProductAdapter adapter) {
+        if (!NetworkUtils.isConnected(this)) {
+            Log.e("CategoriesActivity", "No network connection - cannot load products by category");
+            return;
+        }
+
+        Log.d("CategoriesActivity", "Loading products for category: " + categoryName);
+        
+        apiService.getProductsByCategory(categoryName).enqueue(new Callback<List<ProductResponse>>() {
+            @Override
+            public void onResponse(Call<List<ProductResponse>> call, Response<List<ProductResponse>> response) {
+                try {
+                    if (response.isSuccessful() && response.body() != null) {
+                        productList.clear();
+                        for (ProductResponse productResponse : response.body()) {
+                            Product product = convertToProduct(productResponse);
+                            if (product != null && product.name != null && !product.name.isEmpty()) {
+                                productList.add(product);
+                            }
+                        }
+                        runOnUiThread(() -> {
+                            if (adapter != null) {
+                                adapter.notifyDataSetChanged();
+                            }
+                            Log.d("CategoriesActivity", "Products for category '" + categoryName + "' updated: " + productList.size());
+                        });
+                    }
+                } catch (Exception e) {
+                    Log.e("CategoriesActivity", "Error loading products for category: " + categoryName, e);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<ProductResponse>> call, Throwable t) {
+                Log.e("CategoriesActivity", "Failed to load products for category: " + categoryName, t);
+            }
+        });
+    }
+    
+    private void createCategorySection(String categoryName, String displayTitle) {
+        if (layoutCategoriesContainer == null) {
+            Log.e("CategoriesActivity", "layoutCategoriesContainer is null, cannot create category section");
+            return;
+        }
+        
+        // Tạo LinearLayout cho section mới
+        android.widget.LinearLayout sectionLayout = new android.widget.LinearLayout(this);
+        sectionLayout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        sectionLayout.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        sectionLayout.setPadding(
+            (int) (12 * getResources().getDisplayMetrics().density),
+            (int) (24 * getResources().getDisplayMetrics().density),
+            (int) (12 * getResources().getDisplayMetrics().density),
+            0
+        );
+        
+        // Tạo TextView cho title
+        TextView titleTextView = new TextView(this);
+        titleTextView.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        titleTextView.setText(displayTitle);
+        titleTextView.setTextSize(18);
+        titleTextView.setTypeface(null, android.graphics.Typeface.BOLD);
+        titleTextView.setTextColor(0xFF000000);
+        titleTextView.setPadding(0, 0, 0, (int) (8 * getResources().getDisplayMetrics().density));
+        
+        // Tạo RecyclerView cho sản phẩm
+        RecyclerView recyclerView = new RecyclerView(this);
+        recyclerView.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+            (int) (320 * getResources().getDisplayMetrics().density)
+        ));
+        recyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        recyclerView.setPadding(0, 0, 0, 0);
+        recyclerView.setHorizontalScrollBarEnabled(true);
+        recyclerView.setNestedScrollingEnabled(false);
+        
+        // Tạo adapter và list cho danh mục này
+        List<Product> productList = new ArrayList<>();
+        ProductAdapter adapter = new ProductAdapter(productList);
+        recyclerView.setAdapter(adapter);
+        
+        // Lưu vào map để quản lý
+        categoryRecyclerViews.put(categoryName, recyclerView);
+        categoryAdapters.put(categoryName, adapter);
+        categoryProductLists.put(categoryName, productList);
+        
+        // Thêm vào layout
+        sectionLayout.addView(titleTextView);
+        sectionLayout.addView(recyclerView);
+        
+        // Thêm section vào container (sau layoutWomen)
+        View layoutWomen = findViewById(R.id.layoutWomen);
+        if (layoutWomen != null) {
+            int insertIndex = layoutCategoriesContainer.indexOfChild(layoutWomen) + 1;
+            layoutCategoriesContainer.addView(sectionLayout, insertIndex);
+        } else {
+            layoutCategoriesContainer.addView(sectionLayout);
+        }
+        
+        // Load sản phẩm cho danh mục này
+        loadProductsByCategory(categoryName, displayTitle, recyclerView, productList, adapter);
+        
+        Log.d("CategoriesActivity", "Created category section for: " + categoryName);
+    }
+    
+    private void clearDynamicCategorySections() {
+        // Xóa tất cả các section động (trừ các section có sẵn)
+        if (layoutCategoriesContainer != null) {
+            List<View> viewsToRemove = new ArrayList<>();
+            for (int i = 0; i < layoutCategoriesContainer.getChildCount(); i++) {
+                View child = layoutCategoriesContainer.getChildAt(i);
+                if (child.getId() != R.id.layoutTopSelling && 
+                    child.getId() != R.id.layoutHotTrend && 
+                    child.getId() != R.id.layoutMen && 
+                    child.getId() != R.id.layoutWomen) {
+                    // Kiểm tra xem có phải là section danh mục động không
+                    if (child instanceof android.widget.LinearLayout) {
+                        android.widget.LinearLayout layout = (android.widget.LinearLayout) child;
+                        if (layout.getChildCount() >= 2 && layout.getChildAt(1) instanceof RecyclerView) {
+                            RecyclerView rv = (RecyclerView) layout.getChildAt(1);
+                            if (categoryRecyclerViews.containsValue(rv)) {
+                                viewsToRemove.add(child);
+                            }
+                        }
+                    }
+                }
+            }
+            for (View view : viewsToRemove) {
+                layoutCategoriesContainer.removeView(view);
+            }
+        }
+        
+        // Clear maps
+        categoryRecyclerViews.clear();
+        categoryAdapters.clear();
+        categoryProductLists.clear();
+        
+        Log.d("CategoriesActivity", "Cleared dynamic category sections");
     }
 
     private void loadProductsFromApi() {
@@ -229,65 +501,8 @@ public class CategoriesActivity extends AppCompatActivity {
             }
         });
 
-        // Load men's products
-        apiService.getProductsByCategory("nam").enqueue(new Callback<List<ProductResponse>>() {
-            @Override
-            public void onResponse(Call<List<ProductResponse>> call, Response<List<ProductResponse>> response) {
-                try {
-                    if (response.isSuccessful() && response.body() != null && menList != null && menAdapter != null) {
-                        menList.clear();
-                        for (ProductResponse productResponse : response.body()) {
-                            Product product = convertToProduct(productResponse);
-                            if (product != null && product.name != null && !product.name.isEmpty()) {
-                                menList.add(product);
-                            }
-                        }
-                        runOnUiThread(() -> {
-                            if (menAdapter != null) {
-                                menAdapter.notifyDataSetChanged();
-                            }
-                        });
-                    }
-                } catch (Exception e) {
-                    Log.e("CategoriesActivity", "Error loading men products", e);
-                }
-            }
-
-            @Override
-            public void onFailure(Call<List<ProductResponse>> call, Throwable t) {
-                Log.e("CategoriesActivity", "Failed to load men products", t);
-            }
-        });
-
-        // Load women's products
-        apiService.getProductsByCategory("nu").enqueue(new Callback<List<ProductResponse>>() {
-            @Override
-            public void onResponse(Call<List<ProductResponse>> call, Response<List<ProductResponse>> response) {
-                try {
-                    if (response.isSuccessful() && response.body() != null && womenList != null && womenAdapter != null) {
-                        womenList.clear();
-                        for (ProductResponse productResponse : response.body()) {
-                            Product product = convertToProduct(productResponse);
-                            if (product != null && product.name != null && !product.name.isEmpty()) {
-                                womenList.add(product);
-                            }
-                        }
-                        runOnUiThread(() -> {
-                            if (womenAdapter != null) {
-                                womenAdapter.notifyDataSetChanged();
-                            }
-                        });
-                    }
-                } catch (Exception e) {
-                    Log.e("CategoriesActivity", "Error loading women products", e);
-                }
-            }
-
-            @Override
-            public void onFailure(Call<List<ProductResponse>> call, Throwable t) {
-                Log.e("CategoriesActivity", "Failed to load women products", t);
-            }
-        });
+        // Không load "nam" và "nu" ở đây nữa - sẽ được load trong loadCategoriesFromApi()
+        // Các danh mục sẽ được load động từ API
     }
 
     private Product convertToProduct(ProductResponse productResponse) {

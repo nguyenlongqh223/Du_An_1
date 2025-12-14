@@ -4,24 +4,33 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <RelativeLayout
+    <!-- SwipeRefreshLayout chỉ nên có 1 child -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
+        <!-- RecyclerView: PHẢI visible mặc định -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvNotifications"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:visibility="gone" />
+            android:visibility="visible"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:clipToPadding="false"
+            android:overScrollMode="never" />
 
+        <!-- Empty view -->
         <TextView
             android:id="@+id/tvEmpty"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
+            android:layout_gravity="center"
             android:text="No notifications"
+            android:textSize="14sp"
+            android:textColor="#888888"
             android:visibility="gone" />
 
-    </RelativeLayout>
+    </FrameLayout>
 
 </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
