@@ -8,7 +8,11 @@ const ProductSchema = new mongoose.Schema(
     hinh_anh: { type: String, required: true },
     mo_ta: { type: String },
     thuong_hieu: { type: String },
-    danh_muc: { type: String, enum: ["nam", "nu", "unisex"], default: "unisex" },
+    danh_muc: { 
+      type: String, 
+      default: "unisex"
+      // Không có enum, chấp nhận bất kỳ giá trị nào
+    },
     kich_thuoc: [{ type: String }], // ["37", "38", "39", "40", "41", "42"]
     so_luong_ton: { type: Number, default: 0 },
     danh_gia: { type: Number, default: 5.0 }, // 1-5 sao
