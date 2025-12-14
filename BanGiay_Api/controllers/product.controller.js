@@ -277,29 +277,76 @@ exports.getProductsByCategory = async (req, res) => {
     console.log(`\n========== GET PRODUCTS BY CATEGORY ==========`);
     console.log(`Category: ${danh_muc}`);
     
-    // Validate danh_muc
-    const validCategories = ["nam", "nu", "unisex"];
-    if (!validCategories.includes(danh_muc)) {
-      return res.status(400).json({
-        success: false,
-        message: `Danh mục không hợp lệ. Chỉ chấp nhận: ${validCategories.join(", ")}`
-      });
-    }
+    // BỎ validation enum - chấp nhận bất kỳ tên danh mục nào
+    // Tìm sản phẩm có danh_muc khớp với tên danh mục (case-insensitive)
+    const categoryName = decodeURIComponent(danh_muc).trim();
     
-    const products = await Product.find({
-      danh_muc,
+    console.log(`Searching for products with category: "${categoryName}"`);
+    
+    // TRƯỚC TIÊN: Tìm sản phẩm với tên danh mục chính xác (không map)
+    // Điều này đảm bảo sản phẩm với danh mục mới sẽ được tìm thấy
+    let products = await Product.find({
+      $or: [
+        { danh_muc: { $regex: new RegExp(`^${categoryName}$`, "i") } },
+        { danh_muc: categoryName }
+      ],
       trang_thai: "active",
     });
     
+    console.log(`Found ${products.length} products with exact category name "${categoryName}"`);
+    
+    // NẾU KHÔNG TÌM THẤY: Thử map về enum để tìm sản phẩm cũ (backward compatibility)
+    if (products.length === 0) {
+      const categoryNameLower = categoryName.toLowerCase();
+      let queryCategory = categoryNameLower;
+      
+      // Map các danh mục enum cũ
+      const enumMap = {
+        "nam": "nam",
+        "nu": "nu",
+        "nữ": "nu",
+        "unisex": "unisex"
+      };
+      
+      // Kiểm tra xem có phải enum cũ không
+      if (enumMap[categoryNameLower]) {
+        queryCategory = enumMap[categoryNameLower];
+        console.log(`No products found with category "${categoryName}", trying enum mapping to "${queryCategory}"`);
+      } else {
+        // Auto-map dựa trên từ khóa
+        if (categoryNameLower.includes("nam") || categoryNameLower.includes("male") || categoryNameLower.includes("men")) {
+          queryCategory = "nam";
+          console.log(`Auto-mapping "${categoryName}" to "nam" (contains 'nam')`);
+        } else if (categoryNameLower.includes("nu") || categoryNameLower.includes("nữ") || categoryNameLower.includes("female") || categoryNameLower.includes("women")) {
+          queryCategory = "nu";
+          console.log(`Auto-mapping "${categoryName}" to "nu" (contains 'nu')`);
+        } else {
+          queryCategory = "unisex";
+          console.log(`Auto-mapping "${categoryName}" to "unisex" (default)`);
+        }
+      }
+      
+      // Tìm với enum mapped
+      products = await Product.find({
+        $or: [
+          { danh_muc: { $regex: new RegExp(`^${queryCategory}$`, "i") } },
+          { danh_muc: queryCategory }
+        ],
+        trang_thai: "active",
+      });
+      
+      console.log(`Found ${products.length} products with mapped category "${queryCategory}"`);
+    }
+    
     console.log(`Found ${products.length} products in category "${danh_muc}"`);
     if (products.length > 0) {
-      console.log(`First product: ${products[0].ten_san_pham} (ID: ${products[0]._id})`);
+      console.log(`First product: ${products[0].ten_san_pham} (ID: ${products[0]._id}, danh_muc: ${products[0].danh_muc})`);
     } else {
       const totalProducts = await Product.countDocuments({ trang_thai: "active" });
-      const totalInCategory = await Product.countDocuments({ danh_muc, trang_thai: "active" });
+      const allCategories = await Product.distinct("danh_muc", { trang_thai: "active" });
       console.log(`⚠️ No products found in category "${danh_muc}"`);
       console.log(`Total active products in DB: ${totalProducts}`);
-      console.log(`Total products in category "${danh_muc}": ${totalInCategory}`);
+      console.log(`Available categories in products: ${allCategories.join(", ")}`);
     }
     console.log(`==========================================\n`);
     
@@ -323,17 +370,15 @@ exports.createProduct = async (req, res) => {
     console.log("\n========== CREATE PRODUCT ==========");
     console.log("Request body:", JSON.stringify(req.body, null, 2));
     
-    // Chuẩn hóa danh mục để tránh sai lệch giữa Admin và app
-    req.body.danh_muc = normalizeCategory(req.body.danh_muc);
-
-    // Validate danh mục hợp lệ
-    const validCategories = ["nam", "nu", "unisex"];
-    if (req.body.danh_muc && !validCategories.includes(req.body.danh_muc)) {
-      return res.status(400).json({
-        success: false,
-        message: `Danh mục không hợp lệ. Chỉ chấp nhận: ${validCategories.join(", ")}`,
-      });
+    // Chấp nhận bất kỳ tên danh mục nào từ Category model
+    // Nếu không có danh mục, mặc định là "unisex"
+    if (!req.body.danh_muc || req.body.danh_muc.trim() === "") {
+      req.body.danh_muc = "unisex";
+    } else {
+      req.body.danh_muc = req.body.danh_muc.trim();
     }
+    
+    console.log(`Product category: "${req.body.danh_muc}"`);
 
     // Validation các trường bắt buộc
     const { ten_san_pham, gia_goc, gia_khuyen_mai, hinh_anh } = req.body;
@@ -363,6 +408,7 @@ exports.createProduct = async (req, res) => {
       });
     }
 
+    // Tạo sản phẩm mới
     const newProduct = new Product(req.body);
     await newProduct.save();
     
@@ -442,17 +488,14 @@ exports.updateProduct = async (req, res) => {
     console.log(`Product ID: ${id}`);
     console.log("Update data:", JSON.stringify(req.body, null, 2));
 
-    // Chuẩn hóa danh mục nếu có gửi lên từ client
+    // Chấp nhận bất kỳ tên danh mục nào từ Category model
     if (req.body.danh_muc !== undefined) {
-      req.body.danh_muc = normalizeCategory(req.body.danh_muc);
-
-      const validCategories = ["nam", "nu", "unisex"];
-      if (req.body.danh_muc && !validCategories.includes(req.body.danh_muc)) {
-        return res.status(400).json({
-          success: false,
-          message: `Danh mục không hợp lệ. Chỉ chấp nhận: ${validCategories.join(", ")}`,
-        });
+      if (req.body.danh_muc && req.body.danh_muc.trim() !== "") {
+        req.body.danh_muc = req.body.danh_muc.trim();
+      } else {
+        req.body.danh_muc = "unisex"; // Mặc định
       }
+      console.log(`Product category updated to: "${req.body.danh_muc}"`);
     }
     
     const updatedProduct = await Product.findByIdAndUpdate(

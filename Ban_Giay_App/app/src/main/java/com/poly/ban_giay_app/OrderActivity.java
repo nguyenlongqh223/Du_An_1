@@ -13,8 +13,9 @@ import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AlertDialog;
+
+import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
@@ -29,6 +30,7 @@ import com.poly.ban_giay_app.network.ApiService;
 import com.poly.ban_giay_app.network.NetworkUtils;
 import com.poly.ban_giay_app.network.model.BaseResponse;
 import com.poly.ban_giay_app.network.model.OrderResponse;
+import com.poly.ban_giay_app.network.request.CancelOrderRequest;
 import com.poly.ban_giay_app.network.request.UpdateOrderStatusRequest;
 
 import java.util.ArrayList;
@@ -197,7 +199,7 @@ public class OrderActivity extends AppCompatActivity {
 
             @Override
             public void onCancelOrder(OrderResponse order) {
-                cancelOrder(order);
+                showCancelOrderDialog(order);
             }
         }, this);
         rvOrders.setAdapter(orderAdapter);
@@ -371,41 +373,26 @@ public class OrderActivity extends AppCompatActivity {
         });
     }
 
-    private void cancelOrder(OrderResponse order) {
-        showCancelOrderDialog(order);
-    }
-
     private void showCancelOrderDialog(OrderResponse order) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_cancel_order, null);
-        builder.setView(dialogView);
 
         RadioGroup radioGroupReasons = dialogView.findViewById(R.id.radioGroupReasons);
+        Button btnConfirmCancel = dialogView.findViewById(R.id.btnConfirmCancel);
         TextView btnClose = dialogView.findViewById(R.id.btnClose);
-        Button btnCancel = dialogView.findViewById(R.id.btnCancel);
-        Button btnConfirm = dialogView.findViewById(R.id.btnConfirm);
 
-        AlertDialog dialog = builder.create();
-        dialog.setCancelable(true);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(true)
+            .create();
 
-        // Đóng dialog khi click nút X
         btnClose.setOnClickListener(v -> dialog.dismiss());
 
-        // Đóng dialog khi click "Không"
-        btnCancel.setOnClickListener(v -> dialog.dismiss());
-
-        // Enable/disable nút xác nhận dựa trên việc chọn lý do
         radioGroupReasons.setOnCheckedChangeListener((group, checkedId) -> {
-            btnConfirm.setEnabled(checkedId != -1);
-            if (checkedId != -1) {
-                btnConfirm.setAlpha(1.0f);
-            } else {
-                btnConfirm.setAlpha(0.5f);
-            }
+            btnConfirmCancel.setEnabled(checkedId != -1);
+            btnConfirmCancel.setBackgroundTintList(ContextCompat.getColorStateList(this, checkedId != -1 ? R.color.red : R.color.grey));
         });
 
-        // Xác nhận hủy đơn
-        btnConfirm.setOnClickListener(v -> {
+        btnConfirmCancel.setOnClickListener(v -> {
             int selectedId = radioGroupReasons.getCheckedRadioButtonId();
             if (selectedId == -1) {
                 Toast.makeText(this, "Vui lòng chọn lý do hủy đơn hàng", Toast.LENGTH_SHORT).show();
@@ -414,22 +401,26 @@ public class OrderActivity extends AppCompatActivity {
 
             RadioButton selectedRadio = dialogView.findViewById(selectedId);
             String lyDo = selectedRadio.getText().toString();
+
+            Log.d("OrderActivity", "Lý do hủy đơn hàng: " + lyDo);
+
             dialog.dismiss();
-            performCancelOrder(order, lyDo);
+            cancelOrder(order, lyDo);
         });
 
         dialog.show();
     }
 
-    private void performCancelOrder(OrderResponse order, String lyDo) {
+    private void cancelOrder(OrderResponse order, String lyDo) {
         if (!NetworkUtils.isConnected(this)) {
             Toast.makeText(this, "Không có kết nối mạng", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        com.poly.ban_giay_app.network.request.CancelOrderRequest cancelRequest = 
-            new com.poly.ban_giay_app.network.request.CancelOrderRequest(lyDo);
-        
+        CancelOrderRequest cancelRequest = new CancelOrderRequest(lyDo);
+
+        Log.d("OrderActivity", "Gửi yêu cầu hủy đơn hàng với lý do: " + lyDo);
+
         apiService.cancelOrder(order.getId(), cancelRequest).enqueue(new Callback<BaseResponse<OrderResponse>>() {
             @Override
             public void onResponse(Call<BaseResponse<OrderResponse>> call, Response<BaseResponse<OrderResponse>> response) {
@@ -439,7 +430,9 @@ public class OrderActivity extends AppCompatActivity {
                         Toast.makeText(OrderActivity.this, "Đã hủy đơn hàng thành công", Toast.LENGTH_SHORT).show();
                         loadOrders(); // Reload orders
                     } else {
-                        Toast.makeText(OrderActivity.this, body.getMessage() != null ? body.getMessage() : "Không thể hủy đơn hàng", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(OrderActivity.this,
+                            body.getMessage() != null ? body.getMessage() : "Không thể hủy đơn hàng",
+                            Toast.LENGTH_SHORT).show();
                     }
                 } else {
                     Toast.makeText(OrderActivity.this, NetworkUtils.extractErrorMessage(response), Toast.LENGTH_SHORT).show();

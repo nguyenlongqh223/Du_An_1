@@ -191,8 +191,9 @@ public interface ApiService {
     );
 
     // GET http://YOUR_IP:3000/api/notification/{user_id}
+    // Server trả về data là array trực tiếp, không phải object
     @GET("notification/{user_id}")
-    Call<BaseResponse<NotificationListResponse>> getNotificationsByUser(
+    Call<BaseResponse<List<NotificationResponse>>> getNotificationsByUser(
             @Path("user_id") String userId
     );
 
@@ -205,6 +206,22 @@ public interface ApiService {
     // Đánh dấu tất cả thông báo của user đã đọc
     @PUT("notification/read-all")
     Call<BaseResponse<Void>> markAllNotificationsAsRead(@Query("user_id") String userId);
+
+    // ==================== CATEGORY APIs ====================
+    // GET http://YOUR_IP:3000/api/category
+    // Lấy danh sách tất cả danh mục
+    @GET("category")
+    Call<BaseResponse<List<com.poly.ban_giay_app.network.model.CategoryResponse>>> getCategories();
+
+    // GET http://YOUR_IP:3000/api/category/home
+    // Lấy danh mục hiển thị trên trang chủ
+    @GET("category/home")
+    Call<BaseResponse<List<com.poly.ban_giay_app.network.model.CategoryResponse>>> getHomeCategories();
+
+    // GET http://YOUR_IP:3000/api/category/:categoryId
+    // Lấy chi tiết danh mục
+    @GET("category/{categoryId}")
+    Call<BaseResponse<com.poly.ban_giay_app.network.model.CategoryResponse>> getCategoryById(@Path("categoryId") String categoryId);
 
     // ==================== PAYMENT APIs ====================
     // POST http://YOUR_IP:3000/api/payment

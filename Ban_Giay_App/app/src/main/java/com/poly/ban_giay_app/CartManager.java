@@ -345,32 +345,35 @@ public class CartManager {
 
     /**
      * Thêm sản phẩm vào local cart (để hiển thị ngay trong UI)
-     * Nếu đã có sản phẩm cùng ID và size, sẽ tăng số lượng thay vì tạo item mới
+     * Nếu sản phẩm cùng ID và size đã có, tăng quantity lên
+     * Nếu khác size hoặc sản phẩm khác, tạo item mới
      */
     private void addToLocalCart(Product product, String size, int quantity) {
         try {
-            // Kiểm tra xem đã có item nào với cùng product ID và size chưa
-            if (product != null && product.id != null && !product.id.isEmpty()) {
-                for (CartItem existingItem : cartItems) {
-                    if (existingItem.product != null && 
-                        existingItem.product.id != null && 
-                        existingItem.product.id.equals(product.id) &&
-                        existingItem.size != null &&
-                        existingItem.size.equals(size)) {
-                        // Tìm thấy item cùng sản phẩm và size -> tăng số lượng
-                        existingItem.quantity += quantity;
-                        Log.d("CartManager", "✅ Merged with existing item. New quantity: " + existingItem.quantity + 
-                              " (Product: " + product.name + ", Size: " + size + ")");
-                        return;
-                    }
+            // Kiểm tra xem đã có item với cùng product ID và size chưa
+            boolean found = false;
+            for (CartItem item : cartItems) {
+                if (item.product != null && 
+                    item.product.id != null && 
+                    product.id != null &&
+                    item.product.id.equals(product.id) && 
+                    item.size != null && 
+                    size != null &&
+                    item.size.equals(size)) {
+                    // Tìm thấy item cùng sản phẩm và size -> tăng quantity
+                    item.quantity += quantity;
+                    found = true;
+                    Log.d("CartManager", "✅ Merged item: " + product.name + " (Size: " + size + "). New quantity: " + item.quantity);
+                    break;
                 }
             }
             
-            // Không tìm thấy item cùng sản phẩm và size -> tạo item mới
-            CartItem newItem = new CartItem(product, size, quantity);
-            cartItems.add(newItem);
-            Log.d("CartManager", "✅ Added NEW item to local cart. Total items: " + cartItems.size() + 
-                  " (Product: " + product.name + ", Size: " + size + ", Quantity: " + quantity + ")");
+            // Nếu không tìm thấy item cùng sản phẩm và size, tạo item mới
+            if (!found) {
+                CartItem newItem = new CartItem(product, size, quantity);
+                cartItems.add(newItem);
+                Log.d("CartManager", "✅ Added NEW item to local cart: " + product.name + " (Size: " + size + ", Quantity: " + quantity + "). Total items: " + cartItems.size());
+            }
         } catch (Exception e) {
             Log.e("CartManager", "❌ Error adding to local cart", e);
         }

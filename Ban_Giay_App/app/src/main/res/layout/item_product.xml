@@ -15,7 +15,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="10dp">
+        android:padding="10dp"
+        android:paddingBottom="12dp"
+        android:minHeight="280dp">
 
         <!-- Ảnh sản phẩm -->
         <ImageView
@@ -34,33 +36,39 @@
             android:id="@+id/txtName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="4dp"
             android:text="Tên sản phẩm"
             android:textSize="15sp"
             android:textStyle="bold"
             android:textColor="#222222"
             android:maxLines="2"
-            android:ellipsize="end" />
+            android:ellipsize="end"
+            android:minHeight="40dp" />
 
         <!-- Giá khuyến mãi (màu đỏ, dưới tên sản phẩm) -->
         <TextView
             android:id="@+id/txtPriceNew"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
+            android:layout_marginBottom="2dp"
             android:text="480,000₫"
             android:textColor="#E53935"
             android:textSize="14sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:minHeight="20dp" />
 
         <!-- Giá gốc (gạch ngang, nhỏ hơn, dưới giá khuyến mãi) -->
         <TextView
             android:id="@+id/txtPriceOld"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
+            android:layout_marginBottom="4dp"
             android:text="750,000₫"
             android:textColor="#888888"
-            android:textSize="12sp" />
+            android:textSize="12sp"
+            android:minHeight="18dp" />
     </LinearLayout>
 </androidx.cardview.widget.CardView>

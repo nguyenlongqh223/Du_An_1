@@ -48,4 +48,8 @@ public class BaseResponse<T> {
         }
         return user;
     }
+
+    public T getNotifications() {
+        return notifications;
+    }
 }
