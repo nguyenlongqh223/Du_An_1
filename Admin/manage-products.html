@@ -321,6 +321,7 @@
             <a href="manage-orders.html" class="nav-item">Quản lý Đơn hàng</a>
             <a href="manage-products.html" class="nav-item active">Quản lý Sản phẩm</a>
             <a href="manage-categories.html" class="nav-item">Quản lý Danh mục</a>
+            <a href="manage-carts.html" class="nav-item">Quản lý Giỏ hàng</a>
         </nav>
 
         <div class="content-box">
@@ -383,7 +384,6 @@
                         <label for="danh_muc">Danh mục *</label>
                         <select id="danh_muc" required>
                             <option value="">Chọn danh mục</option>
-                            <!-- Danh mục sẽ được load từ API -->
                         </select>
                     </div>
                     <div class="form-group">
@@ -447,62 +447,40 @@
     <script src="admin.js"></script>
     <script>
         let allProducts = [];
-        let allCategories = []; // Lưu danh sách danh mục từ API
+        let allCategories = [];
         let currentSizes = [];
 
-        // Load categories from API
+        // Load categories from API and populate select
         async function loadCategories() {
             try {
-                console.log('Loading categories from API...');
-                const response = await apiCall('/category');
-                if (response && response.success && response.data) {
-                    allCategories = response.data;
-                    console.log(`✅ Loaded ${allCategories.length} categories`);
-                    
-                    // Populate dropdown
-                    const categorySelect = document.getElementById('danh_muc');
-                    if (categorySelect) {
-                        // Giữ option "Chọn danh mục"
-                        categorySelect.innerHTML = '<option value="">Chọn danh mục</option>';
-                        
-                        // Thêm các danh mục từ API (chỉ danh mục active)
-                        allCategories
-                            .filter(cat => cat.trang_thai === 'active')
-                            .sort((a, b) => (a.thu_tu || 0) - (b.thu_tu || 0))
-                            .forEach(category => {
-                                const option = document.createElement('option');
-                                option.value = category.ten_danh_muc;
-                                option.textContent = category.ten_danh_muc;
-                                categorySelect.appendChild(option);
-                            });
-                        
-                        console.log(`✅ Populated ${categorySelect.options.length - 1} categories to dropdown`);
-                    }
-                } else {
-                    console.warn('⚠️ No categories found or invalid response');
-                    // Fallback: thêm các danh mục mặc định
-                    const categorySelect = document.getElementById('danh_muc');
-                    if (categorySelect) {
-                        categorySelect.innerHTML = `
-                            <option value="">Chọn danh mục</option>
-                            <option value="nam">Nam</option>
-                            <option value="nu">Nữ</option>
-                            <option value="unisex">Hot trend</option>
-                        `;
-                    }
-                }
+                const res = await apiCall('/category');
+                const categories = res.data || res || [];
+                allCategories = Array.isArray(categories)
+                    ? categories.filter(c => (c.trang_thai || 'active') === 'active')
+                    : [];
+
+                const select = document.getElementById('danh_muc');
+                if (!select) return;
+
+                // Reset options
+                select.innerHTML = '<option value=\"\">Chọn danh mục</option>';
+
+                // Add options from API
+                allCategories
+                    .sort((a, b) => {
+                        const orderA = a.thu_tu ?? 0;
+                        const orderB = b.thu_tu ?? 0;
+                        return orderA - orderB;
+                    })
+                    .forEach(cat => {
+                        const opt = document.createElement('option');
+                        opt.value = cat.ten_danh_muc;
+                        opt.textContent = cat.ten_danh_muc;
+                        select.appendChild(opt);
+                    });
             } catch (error) {
                 console.error('Error loading categories:', error);
-                // Fallback: thêm các danh mục mặc định
-                const categorySelect = document.getElementById('danh_muc');
-                if (categorySelect) {
-                    categorySelect.innerHTML = `
-                        <option value="">Chọn danh mục</option>
-                        <option value="nam">Nam</option>
-                        <option value="nu">Nữ</option>
-                        <option value="unisex">Hot trend</option>
-                    `;
-                }
+                // Giữ lại options mặc định nếu lỗi
             }
         }
 
@@ -551,24 +529,10 @@
         // Get category name
         function getCategoryName(category) {
             if (!category) return 'N/A';
-            
-            // Tìm trong danh sách danh mục từ API
-            const foundCategory = allCategories.find(cat => 
-                cat.ten_danh_muc === category || 
-                cat.ten_danh_muc.toLowerCase() === category.toLowerCase()
+            const found = allCategories.find(
+                cat => cat.ten_danh_muc === category || String(cat._id) === String(category)
             );
-            
-            if (foundCategory) {
-                return foundCategory.ten_danh_muc;
-            }
-            
-            // Fallback: map các giá trị enum cũ
-            const categoryMap = {
-                'nam': 'Nam',
-                'nu': 'Nữ',
-                'unisex': 'Hot trend'
-            };
-            return categoryMap[category] || category || 'N/A';
+            return found ? found.ten_danh_muc : category;
         }
 
         // Get status name
@@ -590,6 +554,8 @@
         function openAddModal() {
             document.getElementById('modalTitle').textContent = 'Thêm sản phẩm mới';
             document.getElementById('productForm').reset();
+            // Refresh categories before showing modal
+            loadCategories();
             document.getElementById('productId').value = '';
             currentSizes = [];
             renderSizes();
@@ -599,34 +565,24 @@
         // Open edit modal
         async function openEditModal(productId) {
             try {
-                // Đảm bảo categories đã được load
-                if (allCategories.length === 0) {
-                    await loadCategories();
-                }
-                
                 const response = await apiCall(`/product/${productId}`);
                 const product = response.product || response;
                 
                 document.getElementById('modalTitle').textContent = 'Sửa sản phẩm';
+                // Đảm bảo dropdown đã có danh mục mới nhất
+                await loadCategories();
                 document.getElementById('productId').value = productId;
                 document.getElementById('ten_san_pham').value = product.ten_san_pham || '';
                 document.getElementById('thuong_hieu').value = product.thuong_hieu || '';
-                
-                // Set danh mục - tìm trong dropdown
                 const categorySelect = document.getElementById('danh_muc');
-                const productCategory = product.danh_muc || '';
-                // Tìm option có value khớp với danh_muc của product
-                for (let i = 0; i < categorySelect.options.length; i++) {
-                    if (categorySelect.options[i].value === productCategory) {
-                        categorySelect.selectedIndex = i;
-                        break;
-                    }
+                // Nếu danh mục của sản phẩm chưa có trong select (do mới thêm), thêm tạm option
+                if (product.danh_muc && ![...categorySelect.options].some(o => o.value === product.danh_muc)) {
+                    const opt = document.createElement('option');
+                    opt.value = product.danh_muc;
+                    opt.textContent = product.danh_muc;
+                    categorySelect.appendChild(opt);
                 }
-                // Nếu không tìm thấy, set giá trị trực tiếp (có thể là danh mục mới)
-                if (categorySelect.value !== productCategory && productCategory) {
-                    categorySelect.value = productCategory;
-                }
-                
+                categorySelect.value = product.danh_muc || '';
                 document.getElementById('trang_thai').value = product.trang_thai || 'active';
                 document.getElementById('gia_goc').value = product.gia_goc || 0;
                 document.getElementById('gia_khuyen_mai').value = product.gia_khuyen_mai || 0;
@@ -748,10 +704,10 @@
             }
         }
 
-        // Load categories and products on page load
+        // Load products on page load (load categories first)
         document.addEventListener('DOMContentLoaded', async () => {
-            await loadCategories(); // Load categories first
-            loadProducts(); // Then load products
+            await loadCategories();
+            loadProducts();
         });
     </script>
 </body>

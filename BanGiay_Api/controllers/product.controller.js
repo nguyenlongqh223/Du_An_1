@@ -2,6 +2,43 @@ const Product = require("../models/Product");
 const Notification = require("../models/Notification");
 const User = require("../models/User");
 
+// Helper function để format giá theo định dạng Việt Nam
+const formatPrice = (price) => {
+  if (!price || price <= 0) return "0₫";
+  return new Intl.NumberFormat('vi-VN').format(price) + '₫';
+};
+
+// Helper function để format giá với dấu chấm phân cách (cho Android)
+const formatPriceWithDot = (price) => {
+  if (!price || price <= 0) return "0₫";
+  return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '₫';
+};
+
+// Helper function để lấy giá hiển thị (ưu tiên giá khuyến mãi)
+const getDisplayPrice = (product) => {
+  return product.gia_khuyen_mai || product.gia_goc || 0;
+};
+
+// Helper function để format sản phẩm với giá đã format
+const formatProduct = (product) => {
+  const productObj = product.toObject ? product.toObject() : product;
+  const displayPrice = getDisplayPrice(productObj);
+  
+  return {
+    ...productObj,
+    // Đảm bảo giá luôn có giá trị
+    gia_goc: productObj.gia_goc || 0,
+    gia_khuyen_mai: productObj.gia_khuyen_mai || productObj.gia_goc || 0,
+    // Thêm field giá đã format để mobile app dễ hiển thị
+    gia_hien_tai: displayPrice,
+    gia_formatted: formatPrice(displayPrice),
+    gia_formatted_dot: formatPriceWithDot(displayPrice),
+    // Thêm field giá gốc đã format (nếu có khuyến mãi)
+    gia_goc_formatted: productObj.gia_goc ? formatPrice(productObj.gia_goc) : null,
+    gia_goc_formatted_dot: productObj.gia_goc ? formatPriceWithDot(productObj.gia_goc) : null,
+  };
+};
+
 // Chuẩn hóa và validate danh mục để đồng nhất giữa web admin và app mobile
 const normalizeCategory = (rawCategory) => {
   if (!rawCategory) return "unisex";
@@ -99,15 +136,19 @@ exports.getAllProducts = async (req, res) => {
     console.log(`Found ${products.length} products (total: ${total})`);
     if (products.length > 0) {
       console.log(`First product: ${products[0].ten_san_pham} (ID: ${products[0]._id})`);
+      console.log(`First product price: ${products[0].gia_goc} -> ${products[0].gia_khuyen_mai}`);
     } else {
       const totalActive = await Product.countDocuments({ trang_thai: "active" });
       console.log(`⚠️ No products found. Total active products in DB: ${totalActive}`);
     }
     console.log("==========================================\n");
 
+    // Format sản phẩm với giá đã format
+    const formattedProducts = products.map(product => formatProduct(product));
+
     res.json({
       success: true,
-      products,
+      products: formattedProducts,
       pagination: {
         page: Number(page),
         limit: Number(limit),
@@ -147,11 +188,15 @@ exports.getProductById = async (req, res) => {
     }
     
     console.log(`✅ Product found: ${product.ten_san_pham}`);
+    console.log(`Product price: ${product.gia_goc} -> ${product.gia_khuyen_mai}`);
     console.log("==========================================\n");
+    
+    // Format sản phẩm với giá đã format
+    const formattedProduct = formatProduct(product);
     
     res.json({
       success: true,
-      product
+      product: formattedProduct
     });
   } catch (err) {
     console.error("❌ Lỗi khi lấy sản phẩm theo ID:", err);
@@ -191,8 +236,11 @@ exports.getBestSellingProducts = async (req, res) => {
     }
     console.log(`==========================================\n`);
     
+    // Format sản phẩm với giá đã format
+    const formattedProducts = products.map(product => formatProduct(product));
+    
     // Trả về array trực tiếp như Android app expect
-    res.json(products);
+    res.json(formattedProducts);
   } catch (err) {
     console.error("❌ Error in getBestSellingProducts:", err);
     res.status(500).json({ 
@@ -219,7 +267,10 @@ exports.getNewestProducts = async (req, res) => {
     console.log(`Found ${products.length} products`);
     console.log(`==========================================\n`);
     
-    res.json(products);
+    // Format sản phẩm với giá đã format
+    const formattedProducts = products.map(product => formatProduct(product));
+    
+    res.json(formattedProducts);
   } catch (err) {
     console.error("❌ Error in getNewestProducts:", err);
     res.status(500).json({ 
@@ -256,8 +307,11 @@ exports.getHotTrendProducts = async (req, res) => {
     }
     console.log(`==========================================\n`);
     
+    // Format sản phẩm với giá đã format
+    const formattedProducts = products.map(product => formatProduct(product));
+    
     // Trả về array trực tiếp như Android app expect
-    res.json(products);
+    res.json(formattedProducts);
   } catch (err) {
     console.error("❌ Error in getHotTrendProducts:", err);
     res.status(500).json({ 
@@ -341,6 +395,7 @@ exports.getProductsByCategory = async (req, res) => {
     console.log(`Found ${products.length} products in category "${danh_muc}"`);
     if (products.length > 0) {
       console.log(`First product: ${products[0].ten_san_pham} (ID: ${products[0]._id}, danh_muc: ${products[0].danh_muc})`);
+      console.log(`First product price: ${products[0].gia_goc} -> ${products[0].gia_khuyen_mai}`);
     } else {
       const totalProducts = await Product.countDocuments({ trang_thai: "active" });
       const allCategories = await Product.distinct("danh_muc", { trang_thai: "active" });
@@ -350,8 +405,11 @@ exports.getProductsByCategory = async (req, res) => {
     }
     console.log(`==========================================\n`);
     
+    // Format sản phẩm với giá đã format
+    const formattedProducts = products.map(product => formatProduct(product));
+    
     // Trả về array trực tiếp như Android app expect
-    res.json(products);
+    res.json(formattedProducts);
   } catch (err) {
     console.error("❌ Error in getProductsByCategory:", err);
     res.status(500).json({ 
@@ -454,10 +512,13 @@ exports.createProduct = async (req, res) => {
     
     console.log("==========================================\n");
     
+    // Format sản phẩm với giá đã format
+    const formattedProduct = formatProduct(newProduct);
+    
     res.status(201).json({ 
       success: true,
       message: "Sản phẩm được tạo thành công", 
-      product: newProduct 
+      product: formattedProduct 
     });
   } catch (err) {
     console.error("❌ Lỗi khi tạo sản phẩm:", err);
@@ -516,12 +577,16 @@ exports.updateProduct = async (req, res) => {
     }
     
     console.log(`✅ Product updated: ${updatedProduct.ten_san_pham}`);
+    console.log(`Product price: ${updatedProduct.gia_goc} -> ${updatedProduct.gia_khuyen_mai}`);
     console.log("==========================================\n");
+    
+    // Format sản phẩm với giá đã format
+    const formattedProduct = formatProduct(updatedProduct);
     
     res.json({
       success: true,
       message: "Cập nhật sản phẩm thành công",
-      product: updatedProduct,
+      product: formattedProduct,
     });
   } catch (err) {
     console.error("❌ Lỗi khi cập nhật sản phẩm:", err);
@@ -613,10 +678,13 @@ exports.updateStock = async (req, res) => {
     console.log(`✅ Stock updated: ${product.ten_san_pham} - New stock: ${product.so_luong_ton}`);
     console.log("==========================================\n");
     
+    // Format sản phẩm với giá đã format
+    const formattedProduct = formatProduct(product);
+    
     res.json({
       success: true,
       message: "Cập nhật số lượng tồn kho thành công",
-      product,
+      product: formattedProduct,
     });
   } catch (err) {
     console.error("❌ Lỗi khi cập nhật số lượng tồn kho:", err);

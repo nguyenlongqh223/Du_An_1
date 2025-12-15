@@ -20,13 +20,19 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.poly.ban_giay_app.adapter.ProductAdapter;
 import com.poly.ban_giay_app.models.Product;
 import com.poly.ban_giay_app.network.ApiClient;
 import com.poly.ban_giay_app.network.ApiService;
 import com.poly.ban_giay_app.network.NetworkUtils;
 import com.poly.ban_giay_app.network.model.BaseResponse;
+import com.poly.ban_giay_app.network.model.NotificationListResponse;
+import com.poly.ban_giay_app.network.model.NotificationResponse;
+import com.poly.ban_giay_app.network.model.ProductListResponse;
 import com.poly.ban_giay_app.network.model.ProductResponse;
 
 import java.util.ArrayList;
@@ -46,6 +52,11 @@ public class ProductDetailActivity extends AppCompatActivity {
     private SessionManager sessionManager;
     private ApiService apiService;
     private List<String> availableSizes; // Danh sách size có sẵn từ server
+    private RecyclerView rvRelatedProducts;
+    private ProductAdapter relatedProductsAdapter;
+    private List<Product> relatedProducts;
+    private ImageView imgBell;
+    private TextView txtNotificationBadge;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,6 +99,19 @@ public class ProductDetailActivity extends AppCompatActivity {
         if (product.id != null && !product.id.isEmpty()) {
             loadProductDetails();
         }
+        
+        // Load sản phẩm liên quan
+        loadRelatedProducts();
+        
+        // Load notification count
+        loadNotificationCount();
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Reload notification count khi resume
+        loadNotificationCount();
     }
 
     private void initViews() {
@@ -107,10 +131,29 @@ public class ProductDetailActivity extends AppCompatActivity {
         btnIncrease = findViewById(R.id.btnIncrease);
         btnAddToCart = findViewById(R.id.btnAddToCart);
         btnBuyNow = findViewById(R.id.btnBuyNow);
+        
+        // Initialize notification icon and badge
+        imgBell = findViewById(R.id.imgBell);
+        txtNotificationBadge = findViewById(R.id.txtNotificationBadge);
+        
+        // Initialize RecyclerView for related products
+        rvRelatedProducts = findViewById(R.id.rvRelatedProducts);
+        relatedProducts = new ArrayList<>();
+        relatedProductsAdapter = new ProductAdapter(relatedProducts);
+        rvRelatedProducts.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        rvRelatedProducts.setAdapter(relatedProductsAdapter);
     }
 
     private void bindActions() {
         btnBack.setOnClickListener(v -> finish());
+        
+        // Notification bell icon
+        if (imgBell != null) {
+            imgBell.setOnClickListener(v -> {
+                Intent intent = new Intent(ProductDetailActivity.this, NotificationActivity.class);
+                startActivity(intent);
+            });
+        }
 
         // Size selection
         btnSize37.setOnClickListener(v -> selectSize("37", btnSize37));
@@ -445,6 +488,330 @@ public class ProductDetailActivity extends AppCompatActivity {
             public void onFailure(Call<BaseResponse<ProductResponse>> call, Throwable t) {
                 Log.e("ProductDetailActivity", "Failed to load product details", t);
                 // Lỗi API, giữ nguyên tất cả size enabled
+            }
+        });
+    }
+    
+    /**
+     * Load sản phẩm liên quan theo category
+     */
+    private void loadRelatedProducts() {
+        if (apiService == null || product == null) {
+            Log.d("ProductDetailActivity", "Cannot load related products: apiService or product is null");
+            return;
+        }
+        
+        if (!NetworkUtils.isConnected(this)) {
+            Log.w("ProductDetailActivity", "No network connection, cannot load related products");
+            return;
+        }
+        
+        // Lấy category từ product
+        String categoryTemp = product.category;
+        if (categoryTemp == null || categoryTemp.isEmpty()) {
+            // Nếu không có category, thử lấy từ product name hoặc brand
+            Log.d("ProductDetailActivity", "Product has no category, loading all products");
+            categoryTemp = null; // Load tất cả sản phẩm
+        }
+        
+        // Tạo biến final để sử dụng trong inner class
+        final String category = categoryTemp;
+        final String currentProductId = product.id;
+        
+        Log.d("ProductDetailActivity", "Loading related products for category: " + category);
+        Log.d("ProductDetailActivity", "Current product ID: " + currentProductId);
+        
+        // Thử dùng API mới với parameters trước
+        if (category != null && !category.isEmpty()) {
+            // Load sản phẩm theo category
+            apiService.getAllProducts(1, 20, category, null, null, null, null, null).enqueue(new Callback<ProductListResponse>() {
+                @Override
+                public void onResponse(Call<ProductListResponse> call, Response<ProductListResponse> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        List<ProductResponse> products = response.body().getProducts();
+                        if (products != null && !products.isEmpty()) {
+                            processRelatedProducts(products, currentProductId);
+                            return;
+                        }
+                    }
+                    // Fallback: thử load tất cả sản phẩm
+                    loadAllProductsFallback(currentProductId);
+                }
+                
+                @Override
+                public void onFailure(Call<ProductListResponse> call, Throwable t) {
+                    Log.e("ProductDetailActivity", "Error loading products by category", t);
+                    // Fallback: thử load tất cả sản phẩm
+                    loadAllProductsFallback(currentProductId);
+                }
+            });
+        } else {
+            // Load tất cả sản phẩm
+            loadAllProductsFallback(currentProductId);
+        }
+    }
+    
+    /**
+     * Fallback: Load tất cả sản phẩm
+     */
+    private void loadAllProductsFallback(final String currentProductId) {
+        Log.d("ProductDetailActivity", "Loading all products (fallback)");
+        
+        // Thử API mới trước
+        apiService.getAllProducts(1, 20, null, null, null, null, null, null).enqueue(new Callback<ProductListResponse>() {
+            @Override
+            public void onResponse(Call<ProductListResponse> call, Response<ProductListResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<ProductResponse> products = response.body().getProducts();
+                    if (products != null && !products.isEmpty()) {
+                        processRelatedProducts(products, currentProductId);
+                        return;
+                    }
+                }
+                // Fallback: thử legacy API
+                loadAllProductsLegacy(currentProductId);
+            }
+            
+            @Override
+            public void onFailure(Call<ProductListResponse> call, Throwable t) {
+                Log.e("ProductDetailActivity", "Error loading all products", t);
+                // Fallback: thử legacy API
+                loadAllProductsLegacy(currentProductId);
+            }
+        });
+    }
+    
+    /**
+     * Fallback: Load tất cả sản phẩm từ legacy API
+     */
+    private void loadAllProductsLegacy(final String currentProductId) {
+        Log.d("ProductDetailActivity", "Loading all products (legacy API)");
+        
+        apiService.getAllProducts().enqueue(new Callback<BaseResponse<List<ProductResponse>>>() {
+            @Override
+            public void onResponse(Call<BaseResponse<List<ProductResponse>>> call, Response<BaseResponse<List<ProductResponse>>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().getSuccess()) {
+                    List<ProductResponse> allProducts = response.body().getData();
+                    if (allProducts != null && !allProducts.isEmpty()) {
+                        processRelatedProducts(allProducts, currentProductId);
+                    } else {
+                        Log.w("ProductDetailActivity", "No products found in legacy API");
+                    }
+                } else {
+                    Log.w("ProductDetailActivity", "Legacy API failed: " + (response.body() != null ? response.body().getMessage() : "Unknown error"));
+                }
+            }
+            
+            @Override
+            public void onFailure(Call<BaseResponse<List<ProductResponse>>> call, Throwable t) {
+                Log.e("ProductDetailActivity", "Error loading related products from legacy API", t);
+            }
+        });
+    }
+    
+    /**
+     * Xử lý danh sách sản phẩm liên quan
+     */
+    private void processRelatedProducts(List<ProductResponse> allProducts, String currentProductId) {
+        Log.d("ProductDetailActivity", "Processing " + allProducts.size() + " products");
+        
+        List<Product> filteredProducts = new ArrayList<>();
+        
+        for (ProductResponse productResponse : allProducts) {
+            // Loại bỏ sản phẩm hiện tại
+            if (currentProductId != null && currentProductId.equals(productResponse.getId())) {
+                Log.d("ProductDetailActivity", "Skipping current product: " + productResponse.getId());
+                continue;
+            }
+            
+            Product convertedProduct = convertToProduct(productResponse);
+            if (convertedProduct != null && convertedProduct.name != null && !convertedProduct.name.isEmpty()) {
+                filteredProducts.add(convertedProduct);
+                Log.d("ProductDetailActivity", "Added related product: " + convertedProduct.name);
+            }
+            
+            // Giới hạn 10 sản phẩm
+            if (filteredProducts.size() >= 10) {
+                break;
+            }
+        }
+        
+        runOnUiThread(() -> {
+            relatedProducts.clear();
+            relatedProducts.addAll(filteredProducts);
+            relatedProductsAdapter.notifyDataSetChanged();
+            Log.d("ProductDetailActivity", "✅ Loaded " + filteredProducts.size() + " related products");
+            
+            if (filteredProducts.isEmpty()) {
+                Log.w("ProductDetailActivity", "⚠️ No related products to display");
+            }
+        });
+    }
+    
+    /**
+     * Convert ProductResponse to Product
+     */
+    private Product convertToProduct(ProductResponse productResponse) {
+        Product p = new Product();
+        p.id = productResponse.getId();
+        p.name = productResponse.getName();
+        p.priceOld = productResponse.getPriceOld();
+        p.priceNew = productResponse.getPriceNew();
+        p.imageUrl = productResponse.getImageUrl();
+        p.category = productResponse.getCategory();
+        p.brand = productResponse.getBrand();
+        p.rating = productResponse.getDanhGia();
+        p.description = productResponse.getDescription();
+        return p;
+    }
+    
+    /**
+     * Load số thông báo chưa đọc
+     */
+    private void loadNotificationCount() {
+        Log.d("ProductDetailActivity", "=== loadNotificationCount START ===");
+        if (!sessionManager.isLoggedIn()) {
+            Log.d("ProductDetailActivity", "User not logged in, hiding badge");
+            updateNotificationBadge(0);
+            return;
+        }
+        String userId = sessionManager.getUserId();
+        if (userId == null || userId.isEmpty()) {
+            Log.w("ProductDetailActivity", "userId is null or empty");
+            updateNotificationBadge(0);
+            return;
+        }
+
+        if (!NetworkUtils.isConnected(this)) {
+            Log.w("ProductDetailActivity", "No network connection");
+            return;
+        }
+
+        Log.d("ProductDetailActivity", "Loading notification count for userId: " + userId);
+        
+        // Thử dùng getNotificationsByUser để đếm số thông báo chưa đọc
+        apiService.getNotificationsByUser(userId).enqueue(new Callback<BaseResponse<List<NotificationResponse>>>() {
+            @Override
+            public void onResponse(Call<BaseResponse<List<NotificationResponse>>> call, 
+                                 Response<BaseResponse<List<NotificationResponse>>> response) {
+                Log.d("ProductDetailActivity", "=== getNotificationsByUser RESPONSE ===");
+                Log.d("ProductDetailActivity", "Response successful: " + response.isSuccessful());
+                
+                if (response.isSuccessful() && response.body() != null) {
+                    Log.d("ProductDetailActivity", "Response success: " + response.body().getSuccess());
+                    
+                    List<NotificationResponse> notifications = null;
+                    if (response.body().getData() != null) {
+                        notifications = response.body().getData();
+                        Log.d("ProductDetailActivity", "Got notifications from getData(): " + (notifications != null ? notifications.size() : 0));
+                    } else if (response.body().getNotifications() != null) {
+                        notifications = response.body().getNotifications();
+                        Log.d("ProductDetailActivity", "Got notifications from getNotifications(): " + (notifications != null ? notifications.size() : 0));
+                    }
+                    
+                    if (notifications != null) {
+                        // Đếm số thông báo chưa đọc
+                        int unreadCount = 0;
+                        for (NotificationResponse notification : notifications) {
+                            if (notification != null && !notification.isRead()) {
+                                unreadCount++;
+                            }
+                        }
+                        Log.d("ProductDetailActivity", "✅ Unread notifications count: " + unreadCount);
+                        updateNotificationBadge(unreadCount);
+                    } else {
+                        Log.w("ProductDetailActivity", "Notifications list is null, trying fallback...");
+                        loadNotificationCountFallback(userId);
+                    }
+                } else {
+                    Log.w("ProductDetailActivity", "Response not successful or body is null, trying fallback...");
+                    if (response.body() != null) {
+                        Log.d("ProductDetailActivity", "Response message: " + response.body().getMessage());
+                    }
+                    loadNotificationCountFallback(userId);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<BaseResponse<List<NotificationResponse>>> call, Throwable t) {
+                Log.e("ProductDetailActivity", "Error loading notifications: " + t.getMessage(), t);
+                // Fallback: thử dùng API cũ
+                loadNotificationCountFallback(userId);
+            }
+        });
+    }
+    
+    /**
+     * Fallback: Load số thông báo chưa đọc từ API cũ
+     */
+    private void loadNotificationCountFallback(String userId) {
+        Log.d("ProductDetailActivity", "=== loadNotificationCountFallback START ===");
+        // Fallback: dùng API cũ để lấy số thông báo chưa đọc
+        apiService.getNotifications(userId, false).enqueue(new Callback<BaseResponse<NotificationListResponse>>() {
+            @Override
+            public void onResponse(Call<BaseResponse<NotificationListResponse>> call, Response<BaseResponse<NotificationListResponse>> response) {
+                Log.d("ProductDetailActivity", "=== Fallback API RESPONSE ===");
+                Log.d("ProductDetailActivity", "Response successful: " + response.isSuccessful());
+                
+                if (response.isSuccessful() && response.body() != null && response.body().getSuccess()) {
+                    NotificationListResponse notificationData = response.body().getData();
+                    if (notificationData != null) {
+                        int unreadCount = notificationData.getUnreadCount();
+                        Log.d("ProductDetailActivity", "✅ Fallback - Unread notifications count: " + unreadCount);
+                        updateNotificationBadge(unreadCount);
+                    } else {
+                        Log.w("ProductDetailActivity", "Fallback - notificationData is null");
+                        updateNotificationBadge(0);
+                    }
+                } else {
+                    Log.w("ProductDetailActivity", "Fallback - Response not successful");
+                    if (response.body() != null) {
+                        Log.d("ProductDetailActivity", "Fallback - Response message: " + response.body().getMessage());
+                    }
+                    updateNotificationBadge(0);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<BaseResponse<NotificationListResponse>> call, Throwable t) {
+                Log.e("ProductDetailActivity", "Fallback API also failed: " + t.getMessage(), t);
+                updateNotificationBadge(0);
+            }
+        });
+    }
+    
+    /**
+     * Cập nhật badge thông báo
+     */
+    private void updateNotificationBadge(int count) {
+        runOnUiThread(() -> {
+            Log.d("ProductDetailActivity", "=== updateNotificationBadge ===");
+            Log.d("ProductDetailActivity", "Count: " + count);
+            Log.d("ProductDetailActivity", "txtNotificationBadge is null: " + (txtNotificationBadge == null));
+            
+            if (txtNotificationBadge != null) {
+                if (count > 0) {
+                    // Hiển thị số thông báo chưa đọc
+                    String badgeText;
+                    if (count > 99) {
+                        badgeText = "99+";
+                    } else {
+                        badgeText = String.valueOf(count);
+                    }
+                    txtNotificationBadge.setText(badgeText);
+                    txtNotificationBadge.setVisibility(View.VISIBLE);
+                    // Force bring to front để đảm bảo badge hiển thị trên cùng
+                    txtNotificationBadge.bringToFront();
+                    txtNotificationBadge.invalidate();
+                    txtNotificationBadge.requestLayout();
+                    Log.d("ProductDetailActivity", "✅ Badge hiển thị - Text: '" + badgeText + "', Có " + count + " thông báo chưa đọc");
+                    Log.d("ProductDetailActivity", "Badge visibility: " + (txtNotificationBadge.getVisibility() == View.VISIBLE ? "VISIBLE" : "GONE"));
+                } else {
+                    txtNotificationBadge.setVisibility(View.GONE);
+                    Log.d("ProductDetailActivity", "Badge ẩn - Không có thông báo chưa đọc");
+                }
+            } else {
+                Log.e("ProductDetailActivity", "⚠️ txtNotificationBadge is null! Check layout file.");
             }
         });
     }

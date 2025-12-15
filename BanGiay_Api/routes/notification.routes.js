@@ -35,12 +35,14 @@ router.get("/:user_id/unread/count", async (req, res) => {
     }
     
     // Đếm thông báo chưa đọc
-    // Ưu tiên field da_doc, nếu không có thì dùng is_read
+    // Logic: Thông báo chưa đọc là thông báo có da_doc !== true
+    // (tức là false, null, hoặc không tồn tại - mặc định là false trong schema)
+    // Nếu da_doc không tồn tại, kiểm tra is_read
     const count = await Notification.countDocuments({
       user_id: userIdQuery,
       $or: [
-        { da_doc: false },
-        { is_read: false }
+        { da_doc: { $ne: true } }, // da_doc !== true (false, null, hoặc không tồn tại)
+        { da_doc: { $exists: false }, is_read: { $ne: true } } // Nếu không có da_doc, check is_read
       ]
     });
     
@@ -213,6 +215,59 @@ router.put("/:id/read", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Lỗi khi cập nhật thông báo",
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * Đánh dấu tất cả thông báo của user là đã đọc
+ * PUT /api/notification/read-all/:user_id
+ */
+router.put("/read-all/:user_id", async (req, res) => {
+  try {
+    const { user_id } = req.params;
+    console.log(`\n========== MARK ALL NOTIFICATIONS AS READ ==========`);
+    console.log(`User ID: ${user_id}`);
+    
+    // Convert user_id to ObjectId nếu cần
+    const mongoose = require("mongoose");
+    let userIdQuery = user_id;
+    if (mongoose.Types.ObjectId.isValid(user_id)) {
+      userIdQuery = new mongoose.Types.ObjectId(user_id);
+    }
+    
+    // Cập nhật tất cả thông báo chưa đọc thành đã đọc
+    // Sử dụng cùng logic với endpoint đếm
+    const result = await Notification.updateMany(
+      {
+        user_id: userIdQuery,
+        $or: [
+          { da_doc: { $ne: true } }, // da_doc !== true
+          { da_doc: { $exists: false }, is_read: { $ne: true } } // Nếu không có da_doc, check is_read
+        ]
+      },
+      {
+        $set: {
+          da_doc: true,
+          is_read: true
+        }
+      }
+    );
+    
+    console.log(`✅ Marked ${result.modifiedCount} notifications as read`);
+    console.log("==========================================\n");
+    
+    res.status(200).json({
+      success: true,
+      message: `Đã đánh dấu ${result.modifiedCount} thông báo là đã đọc`,
+      count: result.modifiedCount,
+    });
+  } catch (error) {
+    console.error("❌ Error marking all notifications as read:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi khi đánh dấu tất cả thông báo đã đọc",
       error: error.message,
     });
   }

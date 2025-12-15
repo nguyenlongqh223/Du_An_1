@@ -33,6 +33,7 @@ import com.poly.ban_giay_app.network.NetworkUtils;
 import com.poly.ban_giay_app.network.model.BaseResponse;
 import com.poly.ban_giay_app.network.model.CategoryResponse;
 import com.poly.ban_giay_app.network.model.NotificationListResponse;
+import com.poly.ban_giay_app.network.model.NotificationResponse;
 import com.poly.ban_giay_app.network.model.ProductListResponse;
 import com.poly.ban_giay_app.network.model.ProductResponse;
 
@@ -184,43 +185,72 @@ public class MainActivity extends AppCompatActivity {
     }
     
     private void loadNotificationCount() {
+        Log.d("MainActivity", "=== loadNotificationCount START ===");
         if (!sessionManager.isLoggedIn()) {
+            Log.d("MainActivity", "User not logged in, hiding badge");
             updateNotificationBadge(0);
             return;
         }
         String userId = sessionManager.getUserId();
         if (userId == null || userId.isEmpty()) {
+            Log.w("MainActivity", "userId is null or empty");
             updateNotificationBadge(0);
             return;
         }
 
         if (!NetworkUtils.isConnected(this)) {
+            Log.w("MainActivity", "No network connection");
             return;
         }
 
-        // Dùng API endpoint chuyên dụng để lấy số thông báo chưa đọc (nhanh hơn)
-        apiService.getUnreadNotificationCount(userId).enqueue(new Callback<BaseResponse<Integer>>() {
+        Log.d("MainActivity", "Loading notification count for userId: " + userId);
+        
+        // Thử dùng getNotificationsByUser để đếm số thông báo chưa đọc
+        apiService.getNotificationsByUser(userId).enqueue(new Callback<BaseResponse<List<NotificationResponse>>>() {
             @Override
-            public void onResponse(Call<BaseResponse<Integer>> call, 
-                                 Response<BaseResponse<Integer>> response) {
-                if (response.isSuccessful() && response.body() != null && response.body().getSuccess()) {
-                    Integer count = response.body().getData();
-                    if (count != null) {
-                        updateNotificationBadge(count);
-                        Log.d("MainActivity", "Unread notifications count: " + count);
+            public void onResponse(Call<BaseResponse<List<NotificationResponse>>> call, 
+                                 Response<BaseResponse<List<NotificationResponse>>> response) {
+                Log.d("MainActivity", "=== getNotificationsByUser RESPONSE ===");
+                Log.d("MainActivity", "Response successful: " + response.isSuccessful());
+                
+                if (response.isSuccessful() && response.body() != null) {
+                    Log.d("MainActivity", "Response success: " + response.body().getSuccess());
+                    
+                    List<NotificationResponse> notifications = null;
+                    if (response.body().getData() != null) {
+                        notifications = response.body().getData();
+                        Log.d("MainActivity", "Got notifications from getData(): " + (notifications != null ? notifications.size() : 0));
+                    } else if (response.body().getNotifications() != null) {
+                        notifications = response.body().getNotifications();
+                        Log.d("MainActivity", "Got notifications from getNotifications(): " + (notifications != null ? notifications.size() : 0));
+                    }
+                    
+                    if (notifications != null) {
+                        // Đếm số thông báo chưa đọc
+                        int unreadCount = 0;
+                        for (NotificationResponse notification : notifications) {
+                            if (notification != null && !notification.isRead()) {
+                                unreadCount++;
+                            }
+                        }
+                        Log.d("MainActivity", "✅ Unread notifications count: " + unreadCount);
+                        updateNotificationBadge(unreadCount);
                     } else {
-                        updateNotificationBadge(0);
+                        Log.w("MainActivity", "Notifications list is null, trying fallback...");
+                        loadNotificationCountFallback(userId);
                     }
                 } else {
-                    // Fallback: thử dùng API cũ nếu API mới không hoạt động
-                    Log.w("MainActivity", "Unread count API failed, trying fallback...");
+                    Log.w("MainActivity", "Response not successful or body is null, trying fallback...");
+                    if (response.body() != null) {
+                        Log.d("MainActivity", "Response message: " + response.body().getMessage());
+                    }
                     loadNotificationCountFallback(userId);
                 }
             }
 
             @Override
-            public void onFailure(Call<BaseResponse<Integer>> call, Throwable t) {
-                Log.e("MainActivity", "Error loading notification count: " + t.getMessage());
+            public void onFailure(Call<BaseResponse<List<NotificationResponse>>> call, Throwable t) {
+                Log.e("MainActivity", "Error loading notifications: " + t.getMessage(), t);
                 // Fallback: thử dùng API cũ
                 loadNotificationCountFallback(userId);
             }
@@ -228,25 +258,36 @@ public class MainActivity extends AppCompatActivity {
     }
     
     private void loadNotificationCountFallback(String userId) {
+        Log.d("MainActivity", "=== loadNotificationCountFallback START ===");
         // Fallback: dùng API cũ để lấy số thông báo chưa đọc
         apiService.getNotifications(userId, false).enqueue(new Callback<BaseResponse<NotificationListResponse>>() {
             @Override
             public void onResponse(Call<BaseResponse<NotificationListResponse>> call, Response<BaseResponse<NotificationListResponse>> response) {
+                Log.d("MainActivity", "=== Fallback API RESPONSE ===");
+                Log.d("MainActivity", "Response successful: " + response.isSuccessful());
+                
                 if (response.isSuccessful() && response.body() != null && response.body().getSuccess()) {
                     NotificationListResponse notificationData = response.body().getData();
                     if (notificationData != null) {
-                        updateNotificationBadge(notificationData.getUnreadCount());
+                        int unreadCount = notificationData.getUnreadCount();
+                        Log.d("MainActivity", "✅ Fallback - Unread notifications count: " + unreadCount);
+                        updateNotificationBadge(unreadCount);
                     } else {
+                        Log.w("MainActivity", "Fallback - notificationData is null");
                         updateNotificationBadge(0);
                     }
                 } else {
+                    Log.w("MainActivity", "Fallback - Response not successful");
+                    if (response.body() != null) {
+                        Log.d("MainActivity", "Fallback - Response message: " + response.body().getMessage());
+                    }
                     updateNotificationBadge(0);
                 }
             }
 
             @Override
             public void onFailure(Call<BaseResponse<NotificationListResponse>> call, Throwable t) {
-                Log.e("MainActivity", "Fallback API also failed: " + t.getMessage());
+                Log.e("MainActivity", "Fallback API also failed: " + t.getMessage(), t);
                 updateNotificationBadge(0);
             }
         });
@@ -254,22 +295,33 @@ public class MainActivity extends AppCompatActivity {
     
     private void updateNotificationBadge(int count) {
         runOnUiThread(() -> {
+            Log.d("MainActivity", "=== updateNotificationBadge ===");
+            Log.d("MainActivity", "Count: " + count);
+            Log.d("MainActivity", "txtNotificationBadge is null: " + (txtNotificationBadge == null));
+            
             if (txtNotificationBadge != null) {
                 if (count > 0) {
-                    // Hiển thị dấu đỏ nhỏ (không cần số)
-                    // Nếu muốn hiển thị số, có thể dùng: txtNotificationBadge.setText(count > 99 ? "99+" : String.valueOf(count));
-                    txtNotificationBadge.setText(""); // Để trống để chỉ hiển thị dấu đỏ
+                    // Hiển thị số thông báo chưa đọc
+                    String badgeText;
+                    if (count > 99) {
+                        badgeText = "99+";
+                    } else {
+                        badgeText = String.valueOf(count);
+                    }
+                    txtNotificationBadge.setText(badgeText);
                     txtNotificationBadge.setVisibility(View.VISIBLE);
                     // Force bring to front để đảm bảo badge hiển thị trên cùng
                     txtNotificationBadge.bringToFront();
                     txtNotificationBadge.invalidate();
-                    Log.d("MainActivity", "✅ Badge hiển thị - Có " + count + " thông báo chưa đọc");
+                    txtNotificationBadge.requestLayout();
+                    Log.d("MainActivity", "✅ Badge hiển thị - Text: '" + badgeText + "', Có " + count + " thông báo chưa đọc");
+                    Log.d("MainActivity", "Badge visibility: " + (txtNotificationBadge.getVisibility() == View.VISIBLE ? "VISIBLE" : "GONE"));
                 } else {
                     txtNotificationBadge.setVisibility(View.GONE);
                     Log.d("MainActivity", "Badge ẩn - Không có thông báo chưa đọc");
                 }
             } else {
-                Log.w("MainActivity", "⚠️ txtNotificationBadge is null!");
+                Log.e("MainActivity", "⚠️ txtNotificationBadge is null! Check layout file.");
             }
         });
     }
@@ -1286,10 +1338,12 @@ public class MainActivity extends AppCompatActivity {
         RecyclerView recyclerView = new RecyclerView(this);
         recyclerView.setLayoutParams(new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
-            (int) (320 * getResources().getDisplayMetrics().density)
+            (int) (400 * getResources().getDisplayMetrics().density)
         ));
         recyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-        recyclerView.setPadding(0, (int) (12 * getResources().getDisplayMetrics().density), 0, 0);
+        recyclerView.setPadding(0, (int) (12 * getResources().getDisplayMetrics().density), 0, (int) (20 * getResources().getDisplayMetrics().density));
+        recyclerView.setClipToPadding(false);
+        recyclerView.setClipChildren(false);
         recyclerView.setHorizontalScrollBarEnabled(true);
         
         // Tạo adapter và list cho danh mục này

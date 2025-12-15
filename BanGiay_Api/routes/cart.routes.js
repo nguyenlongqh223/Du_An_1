@@ -32,5 +32,8 @@ router.delete("/item", CartController.removeFromCart);
 // DELETE /api/cart - Xóa toàn bộ giỏ hàng
 router.delete("/", CartController.clearCart);
 
+// DELETE /api/cart/:cartId - Xóa giỏ hàng theo ID (Admin only)
+router.delete("/:cartId", CartController.deleteCartById);
+
 module.exports = router;
 

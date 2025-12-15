@@ -40,13 +40,45 @@
             android:layout_marginLeft="8dp"
             android:layout_marginRight="8dp" />
 
-        <ImageView
-            android:id="@+id/imgBell"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:src="@drawable/ic_bell"
-            android:padding="4dp"
-            app:tint="#FFFFFF" />
+        <!-- Notification bell icon -->
+        <RelativeLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="12dp">
+            <ImageView
+                android:id="@+id/imgBell"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_bell"
+                android:padding="4dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground"
+                app:tint="#FFFFFF" />
+            <!-- Badge hiển thị số thông báo chưa đọc -->
+            <TextView
+                android:id="@+id/txtNotificationBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="20dp"
+                android:minHeight="20dp"
+                android:layout_alignTop="@id/imgBell"
+                android:layout_alignEnd="@id/imgBell"
+                android:layout_marginTop="-4dp"
+                android:layout_marginEnd="-4dp"
+                android:background="@drawable/bg_notification_badge"
+                android:gravity="center"
+                android:text=""
+                android:textColor="#FFFFFF"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:visibility="gone"
+                android:elevation="4dp" />
+        </RelativeLayout>
     </LinearLayout>
 
     <ScrollView
@@ -268,7 +300,24 @@
                 android:textStyle="bold"
                 android:textColor="#FFFFFF"
                 android:backgroundTint="#E53935"
+                android:layout_marginBottom="24dp" />
+
+            <!-- Sản phẩm liên quan -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Sản phẩm liên quan"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#000000"
                 android:layout_marginBottom="12dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvRelatedProducts"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                android:layout_marginBottom="24dp" />
         </LinearLayout>
     </ScrollView>
 

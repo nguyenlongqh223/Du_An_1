@@ -68,18 +68,27 @@
                 android:focusable="true"
                 android:background="?attr/selectableItemBackground"
                 app:tint="#FFFFFF" />
-            <!-- Dấu đỏ nhỏ để báo có thông báo mới/chưa đọc -->
+            <!-- Badge hiển thị số thông báo chưa đọc -->
             <TextView
                 android:id="@+id/txtNotificationBadge"
-                android:layout_width="14dp"
-                android:layout_height="14dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="20dp"
+                android:minHeight="20dp"
                 android:layout_alignTop="@id/imgBell"
                 android:layout_alignEnd="@id/imgBell"
-                android:layout_marginTop="0dp"
-                android:layout_marginEnd="0dp"
+                android:layout_marginTop="-4dp"
+                android:layout_marginEnd="-4dp"
                 android:background="@drawable/bg_notification_badge"
                 android:gravity="center"
                 android:text=""
+                android:textColor="#FFFFFF"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
                 android:visibility="gone"
                 android:elevation="4dp" />
         </RelativeLayout>

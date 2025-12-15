@@ -75,9 +75,160 @@
             background: #c82333;
         }
         
+        .btn-view {
+            padding: 6px 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-right: 5px;
+        }
+        
+        .btn-view:hover {
+            background: #0056b3;
+        }
+        
         .items-detail {
             font-size: 12px;
             color: #666;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 0;
+            border: none;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 700px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover,
+        .close:focus {
+            opacity: 0.7;
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .cart-detail-section {
+            margin-bottom: 25px;
+        }
+
+        .cart-detail-section h3 {
+            color: #667eea;
+            font-size: 18px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .detail-row {
+            display: flex;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #666;
+            width: 150px;
+            flex-shrink: 0;
+        }
+
+        .detail-value {
+            color: #333;
+            flex: 1;
+        }
+
+        .items-list {
+            margin-top: 10px;
+        }
+
+        .item-card {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .item-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .item-details {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .item-details span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .total-section {
+            background: #f0f7ff;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .total-amount {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+            text-align: right;
         }
         
         @media (max-width: 768px) {
@@ -111,6 +262,7 @@
             <a href="manage-orders.html" class="nav-item">Quản lý Đơn hàng</a>
             <a href="manage-products.html" class="nav-item">Quản lý Sản phẩm</a>
             <a href="manage-categories.html" class="nav-item">Quản lý Danh mục</a>
+            <a href="manage-carts.html" class="nav-item active">Quản lý Giỏ hàng</a>
         </nav>
 
         <div class="content-box">
@@ -139,6 +291,19 @@
                     </thead>
                     <tbody></tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Cart Details -->
+    <div id="cartDetailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Chi tiết giỏ hàng</h2>
+                <span class="close" onclick="closeCartDetailModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="cartDetailContent">
+                <!-- Content will be loaded here -->
             </div>
         </div>
     </div>
@@ -300,8 +465,10 @@
                     <td>${formatCurrency(cart.total || 0)}</td>
                     <td>${formatDate(cart.date)}</td>
                     <td>
-                        <button class="btn-delete" onclick="deleteCart('${cart.id || cart._id}')" title="Xóa giỏ hàng">Xóa</button>
-                        <div class="items-detail" style="margin-top: 5px; font-size: 11px;">${itemsDetail.substring(0, 50)}${itemsDetail.length > 50 ? '...' : ''}</div>
+                        <div style="display: flex; gap: 5px; align-items: center;">
+                            <button class="btn-view" onclick="viewCartDetails('${cart.id || cart._id}')">Xem chi tiết</button>
+                            <button class="btn-delete" onclick="deleteCart('${cart.id || cart._id}')" title="Xóa giỏ hàng">Xóa</button>
+                        </div>
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -322,22 +489,136 @@
 
         // Delete cart
         async function deleteCart(cartId) {
-            if (!confirm('Bạn có chắc chắn muốn xóa giỏ hàng này?')) {
+            const cart = allCarts.find(c => (c.id || c._id) === cartId);
+            if (!cart) {
+                alert('Không tìm thấy giỏ hàng!');
+                return;
+            }
+            
+            if (!confirm(`Bạn có chắc chắn muốn xóa giỏ hàng của "${cart.customer}"?\n\nHành động này không thể hoàn tác!`)) {
                 return;
             }
             
             try {
-                // Note: API có thể cần user_id để xóa, nhưng ta có thể thử xóa trực tiếp
-                // Hoặc cần thêm endpoint DELETE /api/cart/:id cho admin
-                alert('Chức năng xóa giỏ hàng cần được thêm vào API. Hiện tại API chỉ hỗ trợ xóa theo user_id.');
-                // await apiCall(`/cart/${cartId}`, { method: 'DELETE' });
-                // alert('Xóa giỏ hàng thành công!');
-                // loadCarts();
+                console.log(`Deleting cart ${cartId}`);
+                const response = await apiCall(`/cart/${cartId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.success) {
+                    alert('Xóa giỏ hàng thành công!');
+                    loadCarts();
+                } else {
+                    throw new Error(response.message || 'Không thể xóa giỏ hàng');
+                }
             } catch (error) {
+                console.error('Error deleting cart:', error);
                 alert('Lỗi: ' + (error.message || 'Không thể xóa giỏ hàng'));
             }
         }
 
+        // View cart details
+        async function viewCartDetails(cartId) {
+            const modal = document.getElementById('cartDetailModal');
+            const content = document.getElementById('cartDetailContent');
+            
+            // Show loading
+            content.innerHTML = '<div style="text-align: center; padding: 40px;"><p>Đang tải chi tiết giỏ hàng...</p></div>';
+            modal.style.display = 'block';
+
+            try {
+                // Tìm cart trong allCarts trước
+                const cart = allCarts.find(c => (c.id || c._id) === cartId);
+                if (!cart) {
+                    throw new Error('Không tìm thấy giỏ hàng');
+                }
+
+                // Build items HTML
+                let itemsHTML = '';
+                if (cart.items && cart.items.length > 0) {
+                    cart.items.forEach((item, index) => {
+                        const itemName = item.san_pham_id?.ten_san_pham || item.ten_san_pham || 'N/A';
+                        const quantity = item.so_luong || 0;
+                        const size = item.kich_thuoc || 'N/A';
+                        const price = item.gia || 0;
+                        const total = price * quantity;
+
+                        itemsHTML += `
+                            <div class="item-card">
+                                <div class="item-name">${index + 1}. ${itemName}</div>
+                                <div class="item-details">
+                                    <span><strong>Số lượng:</strong> ${quantity}</span>
+                                    <span><strong>Size:</strong> ${size}</span>
+                                    <span><strong>Giá:</strong> ${formatCurrency(price)}</span>
+                                    <span><strong>Thành tiền:</strong> ${formatCurrency(total)}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    itemsHTML = '<p>Giỏ hàng trống.</p>';
+                }
+
+                content.innerHTML = `
+                    <div class="cart-detail-section">
+                        <h3>Thông tin khách hàng</h3>
+                        <div class="detail-row">
+                            <div class="detail-label">Tên khách hàng:</div>
+                            <div class="detail-value">${cart.customer || 'N/A'}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Ngày tạo:</div>
+                            <div class="detail-value">${formatDate(cart.date)}</div>
+                        </div>
+                    </div>
+
+                    <div class="cart-detail-section">
+                        <h3>Sản phẩm trong giỏ hàng</h3>
+                        <div class="items-list">
+                            ${itemsHTML}
+                        </div>
+                    </div>
+
+                    <div class="total-section">
+                        <div class="detail-row" style="border: none; padding: 0;">
+                            <div class="detail-label" style="font-size: 18px; font-weight: 600;">Tổng số sản phẩm:</div>
+                            <div style="font-size: 18px; font-weight: 600; color: #333;">${cart.itemCount || 0} sản phẩm</div>
+                        </div>
+                        <div class="detail-row" style="border: none; padding: 0;">
+                            <div class="detail-label" style="font-size: 18px; font-weight: 600;">Tổng số lượng:</div>
+                            <div style="font-size: 18px; font-weight: 600; color: #333;">${cart.totalQuantity || 0} món</div>
+                        </div>
+                        <div class="detail-row" style="border: none; padding: 0;">
+                            <div class="detail-label" style="font-size: 18px; font-weight: 600;">Tổng tiền:</div>
+                            <div class="total-amount">${formatCurrency(cart.total || 0)}</div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error loading cart details:', error);
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <p style="color: #dc3545;">Lỗi: ${error.message || 'Không thể tải chi tiết giỏ hàng'}</p>
+                        <button class="btn-view" onclick="closeCartDetailModal()" style="margin-top: 20px;">Đóng</button>
+                    </div>
+                `;
+            }
+        }
+
+        // Close cart detail modal
+        function closeCartDetailModal() {
+            const modal = document.getElementById('cartDetailModal');
+            modal.style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('cartDetailModal');
+            if (event.target === modal) {
+                closeCartDetailModal();
+            }
+        }
+        
         // Load on page load
         document.addEventListener('DOMContentLoaded', loadCarts);
     </script>

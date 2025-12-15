@@ -34,6 +34,7 @@ import com.poly.ban_giay_app.models.Product;
 import com.poly.ban_giay_app.network.model.BaseResponse;
 import com.poly.ban_giay_app.network.model.CartResponse;
 import com.poly.ban_giay_app.network.model.NotificationListResponse;
+import com.poly.ban_giay_app.network.model.NotificationResponse;
 import com.poly.ban_giay_app.network.model.OrderResponse;
 import com.poly.ban_giay_app.network.model.ProductResponse;
 import com.poly.ban_giay_app.network.request.OrderRequest;
@@ -191,6 +192,15 @@ public class CartActivity extends AppCompatActivity {
             navHome.setOnClickListener(v -> {
                 Intent intent = new Intent(CartActivity.this, MainActivity.class);
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                startActivity(intent);
+            });
+        }
+
+        // Categories navigation
+        View navCategories = findViewById(R.id.navCategories);
+        if (navCategories != null) {
+            navCategories.setOnClickListener(v -> {
+                Intent intent = new Intent(CartActivity.this, CategoriesActivity.class);
                 startActivity(intent);
             });
         }
@@ -1073,8 +1083,28 @@ public class CartActivity extends AppCompatActivity {
                             Log.d("CartActivity", "Response message: " + body.getMessage());
                             
                             if (body.getSuccess()) {
-                                Log.d("CartActivity", "✅ Order created successfully!");
-                                Toast.makeText(CartActivity.this, "Đặt hàng thành công!", Toast.LENGTH_SHORT).show();
+                                OrderResponse orderResponse = body.getData();
+                                if (orderResponse != null) {
+                                    Log.d("CartActivity", "✅ Order created successfully!");
+                                    Log.d("CartActivity", "Order ID: " + orderResponse.getId());
+                                    Log.d("CartActivity", "Order Total: " + orderResponse.getTongTien());
+                                    Log.d("CartActivity", "Order Status: " + orderResponse.getTrangThai());
+                                    Log.d("CartActivity", "Order Items Count: " + (orderResponse.getItems() != null ? orderResponse.getItems().size() : 0));
+                                    
+                                    // Log toàn bộ order response để debug
+                                    try {
+                                        com.google.gson.Gson gson = new com.google.gson.Gson();
+                                        String orderJson = gson.toJson(orderResponse);
+                                        Log.d("CartActivity", "Order Response JSON: " + orderJson);
+                                    } catch (Exception e) {
+                                        Log.e("CartActivity", "Error serializing order response", e);
+                                    }
+                                    
+                                    Toast.makeText(CartActivity.this, "Đặt hàng thành công! ID: " + orderResponse.getId(), Toast.LENGTH_LONG).show();
+                                } else {
+                                    Log.w("CartActivity", "⚠️ Order created but response data is null");
+                                    Toast.makeText(CartActivity.this, "Đặt hàng thành công!", Toast.LENGTH_SHORT).show();
+                                }
                                 
                                 // Xóa các sản phẩm đã chọn khỏi local cart
                                 if (cartManager != null) {
@@ -1085,14 +1115,14 @@ public class CartActivity extends AppCompatActivity {
                                 loadCartFromServer();
                                 
                                 // Chuyển đến màn hình đơn hàng sau delay để đảm bảo server đã lưu xong
-                                // Tăng delay lên 1.5 giây để đảm bảo server đã lưu đơn hàng vào database
+                                // Tăng delay lên 2 giây để đảm bảo server đã lưu đơn hàng vào database
                                 new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
                                     Log.d("CartActivity", "Navigating to OrderActivity after order creation");
                                     Intent intent = new Intent(CartActivity.this, OrderActivity.class);
                                     // Thêm flag để OrderActivity biết cần reload ngay
                                     intent.putExtra("shouldReload", true);
                                     startActivity(intent);
-                                }, 1500);
+                                }, 2000);
                             } else {
                                 String errorMsg = body.getMessage() != null ? body.getMessage() : "Không thể tạo đơn hàng";
                                 Log.e("CartActivity", "❌ Order creation failed: " + errorMsg);
@@ -1176,55 +1206,145 @@ public class CartActivity extends AppCompatActivity {
     }
 
     private void loadNotificationCount() {
+        Log.d("CartActivity", "=== loadNotificationCount START ===");
         if (!sessionManager.isLoggedIn()) {
+            Log.d("CartActivity", "User not logged in, hiding badge");
             updateNotificationBadge(0);
             return;
         }
         String userId = sessionManager.getUserId();
         if (userId == null || userId.isEmpty()) {
+            Log.w("CartActivity", "userId is null or empty");
             updateNotificationBadge(0);
             return;
         }
 
         if (!NetworkUtils.isConnected(this)) {
+            Log.w("CartActivity", "No network connection");
             return;
         }
 
+        Log.d("CartActivity", "Loading notification count for userId: " + userId);
+        
+        // Thử dùng getNotificationsByUser để đếm số thông báo chưa đọc
+        apiService.getNotificationsByUser(userId).enqueue(new Callback<BaseResponse<List<NotificationResponse>>>() {
+            @Override
+            public void onResponse(Call<BaseResponse<List<NotificationResponse>>> call, 
+                                 Response<BaseResponse<List<NotificationResponse>>> response) {
+                Log.d("CartActivity", "=== getNotificationsByUser RESPONSE ===");
+                Log.d("CartActivity", "Response successful: " + response.isSuccessful());
+                
+                if (response.isSuccessful() && response.body() != null) {
+                    Log.d("CartActivity", "Response success: " + response.body().getSuccess());
+                    
+                    List<NotificationResponse> notifications = null;
+                    if (response.body().getData() != null) {
+                        notifications = response.body().getData();
+                        Log.d("CartActivity", "Got notifications from getData(): " + (notifications != null ? notifications.size() : 0));
+                    } else if (response.body().getNotifications() != null) {
+                        notifications = response.body().getNotifications();
+                        Log.d("CartActivity", "Got notifications from getNotifications(): " + (notifications != null ? notifications.size() : 0));
+                    }
+                    
+                    if (notifications != null) {
+                        // Đếm số thông báo chưa đọc
+                        int unreadCount = 0;
+                        for (NotificationResponse notification : notifications) {
+                            if (notification != null && !notification.isRead()) {
+                                unreadCount++;
+                            }
+                        }
+                        Log.d("CartActivity", "✅ Unread notifications count: " + unreadCount);
+                        updateNotificationBadge(unreadCount);
+                    } else {
+                        Log.w("CartActivity", "Notifications list is null, trying fallback...");
+                        loadNotificationCountFallback(userId);
+                    }
+                } else {
+                    Log.w("CartActivity", "Response not successful or body is null, trying fallback...");
+                    if (response.body() != null) {
+                        Log.d("CartActivity", "Response message: " + response.body().getMessage());
+                    }
+                    loadNotificationCountFallback(userId);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<BaseResponse<List<NotificationResponse>>> call, Throwable t) {
+                Log.e("CartActivity", "Error loading notifications: " + t.getMessage(), t);
+                // Fallback: thử dùng API cũ
+                loadNotificationCountFallback(userId);
+            }
+        });
+    }
+    
+    private void loadNotificationCountFallback(String userId) {
+        Log.d("CartActivity", "=== loadNotificationCountFallback START ===");
+        // Fallback: dùng API cũ để lấy số thông báo chưa đọc
         apiService.getNotifications(userId, false).enqueue(new Callback<BaseResponse<NotificationListResponse>>() {
             @Override
             public void onResponse(Call<BaseResponse<NotificationListResponse>> call, Response<BaseResponse<NotificationListResponse>> response) {
+                Log.d("CartActivity", "=== Fallback API RESPONSE ===");
+                Log.d("CartActivity", "Response successful: " + response.isSuccessful());
+                
                 if (response.isSuccessful() && response.body() != null && response.body().getSuccess()) {
                     NotificationListResponse notificationData = response.body().getData();
                     if (notificationData != null) {
-                        updateNotificationBadge(notificationData.getUnreadCount());
+                        int unreadCount = notificationData.getUnreadCount();
+                        Log.d("CartActivity", "✅ Fallback - Unread notifications count: " + unreadCount);
+                        updateNotificationBadge(unreadCount);
                     } else {
+                        Log.w("CartActivity", "Fallback - notificationData is null");
                         updateNotificationBadge(0);
                     }
                 } else {
+                    Log.w("CartActivity", "Fallback - Response not successful");
+                    if (response.body() != null) {
+                        Log.d("CartActivity", "Fallback - Response message: " + response.body().getMessage());
+                    }
                     updateNotificationBadge(0);
                 }
             }
 
             @Override
             public void onFailure(Call<BaseResponse<NotificationListResponse>> call, Throwable t) {
-                Log.e("CartActivity", "Error loading notification count: " + t.getMessage());
+                Log.e("CartActivity", "Fallback API also failed: " + t.getMessage(), t);
                 updateNotificationBadge(0);
             }
         });
     }
 
     private void updateNotificationBadge(int count) {
-        if (txtNotificationBadge != null) {
-            if (count > 0) {
-                // Hiển thị dấu đỏ nhỏ (không cần số)
-                txtNotificationBadge.setText(""); // Để trống để chỉ hiển thị dấu đỏ
-                txtNotificationBadge.setVisibility(View.VISIBLE);
-                Log.d("CartActivity", "✅ Badge hiển thị - Có " + count + " thông báo chưa đọc");
+        runOnUiThread(() -> {
+            Log.d("CartActivity", "=== updateNotificationBadge ===");
+            Log.d("CartActivity", "Count: " + count);
+            Log.d("CartActivity", "txtNotificationBadge is null: " + (txtNotificationBadge == null));
+            
+            if (txtNotificationBadge != null) {
+                if (count > 0) {
+                    // Hiển thị số thông báo chưa đọc
+                    String badgeText;
+                    if (count > 99) {
+                        badgeText = "99+";
+                    } else {
+                        badgeText = String.valueOf(count);
+                    }
+                    txtNotificationBadge.setText(badgeText);
+                    txtNotificationBadge.setVisibility(View.VISIBLE);
+                    // Force bring to front để đảm bảo badge hiển thị trên cùng
+                    txtNotificationBadge.bringToFront();
+                    txtNotificationBadge.invalidate();
+                    txtNotificationBadge.requestLayout();
+                    Log.d("CartActivity", "✅ Badge hiển thị - Text: '" + badgeText + "', Có " + count + " thông báo chưa đọc");
+                    Log.d("CartActivity", "Badge visibility: " + (txtNotificationBadge.getVisibility() == View.VISIBLE ? "VISIBLE" : "GONE"));
+                } else {
+                    txtNotificationBadge.setVisibility(View.GONE);
+                    Log.d("CartActivity", "Badge ẩn - Không có thông báo chưa đọc");
+                }
             } else {
-                txtNotificationBadge.setVisibility(View.GONE);
-                Log.d("CartActivity", "Badge ẩn - Không có thông báo chưa đọc");
+                Log.e("CartActivity", "⚠️ txtNotificationBadge is null! Check layout file.");
             }
-        }
+        });
     }
 }
 

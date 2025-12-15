@@ -9,11 +9,6 @@ const UserSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     so_dien_thoai: { type: String },
     dia_chi: { type: String },
-    trang_thai: {
-      type: String,
-      enum: ["active", "inactive"],
-      default: "active"
-    },
     vatro_id: { type: mongoose.Schema.Types.ObjectId, ref: "VaiTro" },
     // OTP fields for forgot password
     otp: { type: String },

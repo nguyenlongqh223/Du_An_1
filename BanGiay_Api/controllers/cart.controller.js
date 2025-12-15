@@ -461,3 +461,55 @@ exports.clearCart = async (req, res) => {
     });
   }
 };
+
+/**
+ * Xóa giỏ hàng theo ID (Admin only)
+ * DELETE /api/cart/:cartId
+ */
+exports.deleteCartById = async (req, res) => {
+  try {
+    const { cartId } = req.params;
+
+    console.log(`\n========== DELETE CART BY ID ==========`);
+    console.log(`Cart ID: ${cartId}`);
+
+    const cart = await Cart.findById(cartId);
+
+    if (!cart) {
+      console.log(`❌ Cart not found: ${cartId}`);
+      return res.status(404).json({
+        success: false,
+        message: "Giỏ hàng không tồn tại",
+      });
+    }
+
+    console.log(`✅ Cart found: ${cart._id}`);
+
+    // Xóa giỏ hàng
+    await Cart.findByIdAndDelete(cartId);
+
+    console.log(`✅ Cart deleted: ${cartId}`);
+    console.log("==========================================\n");
+
+    res.json({
+      success: true,
+      message: "Đã xóa giỏ hàng thành công",
+      data: {
+        cartId: cartId,
+        deletedAt: new Date(),
+      },
+    });
+  } catch (err) {
+    console.error("❌ Lỗi khi xóa giỏ hàng:", err);
+    if (err.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        message: "ID giỏ hàng không hợp lệ",
+      });
+    }
+    res.status(500).json({
+      success: false,
+      error: err.message || "Lỗi server khi xóa giỏ hàng",
+    });
+  }
+};

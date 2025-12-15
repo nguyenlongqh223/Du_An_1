@@ -36,10 +36,7 @@ app.get("/", (req, res) => {
       bestSelling: "/api/product/best-selling",
       cart: "/api/cart",
       orders: "/api/order",
-      auth: "/api/auth",
-      notifications: "/api/notification",
-      categories: "/api/category",
-      users: "/api/user"
+      auth: "/api/auth"
     }
   });
 });

@@ -150,13 +150,13 @@ exports.getOrders = async (req, res) => {
     const orders = await Order.find(query)
       .sort({ createdAt: -1 }) // Mới nhất trước
       .populate("items.san_pham_id", "ten_san_pham hinh_anh gia_goc gia_khuyen_mai")
-      .populate("user_id", "ho_ten email so_dien_thoai dia_chi ten_dang_nhap");
+      .populate("user_id", "ho_ten email so_dien_thoai ten_dang_nhap");
 
     console.log(`✅ Found ${orders.length} orders`);
 
     // Format orders để khớp với OrderResponse model
     // Dùng JSON.stringify/parse để đảm bảo ObjectId được convert thành string
-    const formattedOrders = await Promise.all(orders.map(async (order) => {
+    const formattedOrders = orders.map(order => {
       // Convert to plain object và serialize để convert ObjectId
       const orderStr = JSON.stringify(order);
       const orderObj = JSON.parse(orderStr);
@@ -184,73 +184,47 @@ exports.getOrders = async (req, res) => {
         };
       });
 
-      // Xử lý user_id - đảm bảo là string
+      // Xử lý user_id - giữ lại thông tin user đã populate
       let userIdStr = "";
-      let userDiaChi = "";
-      let userSoDienThoai = "";
-      let userHoTen = "";
+      let userInfo = null;
       
       if (orderObj.user_id) {
         if (typeof orderObj.user_id === 'object' && orderObj.user_id._id) {
           userIdStr = String(orderObj.user_id._id);
-          // Lấy thông tin từ user nếu đã populate
-          userDiaChi = orderObj.user_id.dia_chi || "";
-          userSoDienThoai = orderObj.user_id.so_dien_thoai || "";
-          userHoTen = orderObj.user_id.ho_ten || "";
+          // Giữ lại thông tin user đã populate
+          userInfo = {
+            _id: String(orderObj.user_id._id),
+            ho_ten: orderObj.user_id.ho_ten || "",
+            email: orderObj.user_id.email || "",
+            so_dien_thoai: orderObj.user_id.so_dien_thoai || "",
+            ten_dang_nhap: orderObj.user_id.ten_dang_nhap || ""
+          };
         } else if (typeof orderObj.user_id === 'object') {
           userIdStr = String(orderObj.user_id);
-          userDiaChi = orderObj.user_id.dia_chi || "";
-          userSoDienThoai = orderObj.user_id.so_dien_thoai || "";
-          userHoTen = orderObj.user_id.ho_ten || "";
         } else {
           userIdStr = String(orderObj.user_id);
-        }
-      }
-      
-      // Nếu chưa có ho_ten và có userIdStr, query lại User
-      if (!userHoTen && userIdStr) {
-        try {
-          const mongoose = require("mongoose");
-          if (mongoose.Types.ObjectId.isValid(userIdStr)) {
-            const user = await User.findById(userIdStr).select("ho_ten dia_chi so_dien_thoai").lean();
-            if (user) {
-              userHoTen = user.ho_ten || "";
-              if (!userDiaChi) userDiaChi = user.dia_chi || "";
-              if (!userSoDienThoai) userSoDienThoai = user.so_dien_thoai || "";
-            }
-          }
-        } catch (userErr) {
-          console.error("Error fetching user info for order:", orderObj._id, userErr);
         }
       }
 
       return {
         _id: String(orderObj._id || ""),
         user_id: userIdStr,
-        ho_ten: userHoTen || "", // Tên khách hàng (chủ tài khoản đặt hàng)
+        user: userInfo, // Thêm thông tin user đã populate
         items: formattedItems,
         tong_tien: orderObj.tong_tien || 0,
         trang_thai: orderObj.trang_thai || "pending",
-        dia_chi_giao_hang: orderObj.dia_chi_giao_hang || userDiaChi || "",
-        so_dien_thoai: orderObj.so_dien_thoai || userSoDienThoai || "",
+        dia_chi_giao_hang: orderObj.dia_chi_giao_hang || "",
+        so_dien_thoai: orderObj.so_dien_thoai || "",
         ghi_chu: orderObj.ghi_chu || "",
         createdAt: orderObj.createdAt,
         updatedAt: orderObj.updatedAt,
       };
-    }));
+    });
 
     console.log(`✅ Formatted ${formattedOrders.length} orders`);
-    if (formattedOrders.length > 0) {
-      console.log("Sample order:", {
-        _id: formattedOrders[0]._id,
-        ho_ten: formattedOrders[0].ho_ten,
-        user_id: formattedOrders[0].user_id,
-        trang_thai: formattedOrders[0].trang_thai,
-      });
-      if (formattedOrders[0].items.length > 0) {
-        console.log("Sample item san_pham_id type:", typeof formattedOrders[0].items[0].san_pham_id);
-        console.log("Sample item san_pham_id value:", formattedOrders[0].items[0].san_pham_id);
-      }
+    if (formattedOrders.length > 0 && formattedOrders[0].items.length > 0) {
+      console.log("Sample item san_pham_id type:", typeof formattedOrders[0].items[0].san_pham_id);
+      console.log("Sample item san_pham_id value:", formattedOrders[0].items[0].san_pham_id);
     }
 
     res.json({
@@ -279,7 +253,7 @@ exports.getOrderById = async (req, res) => {
     const order = await Order.findById(orderId)
       .lean()
       .populate("items.san_pham_id", "ten_san_pham hinh_anh gia_goc gia_khuyen_mai")
-      .populate("user_id", "ho_ten email so_dien_thoai dia_chi ten_dang_nhap");
+      .populate("user_id", "ho_ten email so_dien_thoai ten_dang_nhap");
 
     if (!order) {
       return res.status(404).json({
@@ -315,11 +289,21 @@ exports.getOrderById = async (req, res) => {
       };
     });
 
-    // Xử lý user_id - đảm bảo là string
+    // Xử lý user_id - giữ lại thông tin user đã populate
     let userIdStr = "";
+    let userInfo = null;
+    
     if (order.user_id) {
       if (typeof order.user_id === 'object' && order.user_id._id) {
         userIdStr = String(order.user_id._id);
+        // Giữ lại thông tin user đã populate
+        userInfo = {
+          _id: String(order.user_id._id),
+          ho_ten: order.user_id.ho_ten || "",
+          email: order.user_id.email || "",
+          so_dien_thoai: order.user_id.so_dien_thoai || "",
+          ten_dang_nhap: order.user_id.ten_dang_nhap || ""
+        };
       } else if (typeof order.user_id === 'object') {
         userIdStr = String(order.user_id);
       } else {
@@ -331,40 +315,15 @@ exports.getOrderById = async (req, res) => {
     const orderStr = JSON.stringify(order);
     const orderObj = JSON.parse(orderStr);
 
-    // Lấy thông tin user để lấy địa chỉ, số điện thoại và tên khách hàng
-    let userDiaChi = "";
-    let userSoDienThoai = "";
-    let userHoTen = "";
-    
-    if (order.user_id && typeof order.user_id === 'object') {
-      // Nếu đã populate user_id
-      userDiaChi = order.user_id.dia_chi || "";
-      userSoDienThoai = order.user_id.so_dien_thoai || "";
-      userHoTen = order.user_id.ho_ten || "";
-    } else if (userIdStr) {
-      // Nếu chưa populate, query lại user
-      try {
-        const user = await User.findById(userIdStr).select("ho_ten dia_chi so_dien_thoai");
-        if (user) {
-          userDiaChi = user.dia_chi || "";
-          userSoDienThoai = user.so_dien_thoai || "";
-          userHoTen = user.ho_ten || "";
-        }
-      } catch (userErr) {
-        console.error("Error fetching user info:", userErr);
-      }
-    }
-
-    // Ưu tiên dùng địa chỉ và số điện thoại từ Order, nếu không có thì dùng từ User
     const formattedOrder = {
       _id: String(orderObj._id || ""),
       user_id: userIdStr,
-      ho_ten: userHoTen || "", // Tên khách hàng (chủ tài khoản đặt hàng)
+      user: userInfo, // Thêm thông tin user đã populate
       items: formattedItems,
       tong_tien: orderObj.tong_tien || 0,
       trang_thai: orderObj.trang_thai || "pending",
-      dia_chi_giao_hang: orderObj.dia_chi_giao_hang || userDiaChi || "",
-      so_dien_thoai: orderObj.so_dien_thoai || userSoDienThoai || "",
+      dia_chi_giao_hang: orderObj.dia_chi_giao_hang || "",
+      so_dien_thoai: orderObj.so_dien_thoai || "",
       ghi_chu: orderObj.ghi_chu || "",
       createdAt: orderObj.createdAt,
       updatedAt: orderObj.updatedAt,
@@ -374,9 +333,6 @@ exports.getOrderById = async (req, res) => {
       _id: formattedOrder._id,
       items_count: formattedOrder.items.length,
       trang_thai: formattedOrder.trang_thai,
-      ho_ten: formattedOrder.ho_ten,
-      dia_chi_giao_hang: formattedOrder.dia_chi_giao_hang,
-      so_dien_thoai: formattedOrder.so_dien_thoai,
     });
     if (formattedOrder.items.length > 0) {
       console.log("Sample item san_pham_id type:", typeof formattedOrder.items[0].san_pham_id);
@@ -432,6 +388,14 @@ exports.updateOrderStatus = async (req, res) => {
       });
     }
 
+    // Không cho phép cập nhật trạng thái nếu đơn hàng đã bị hủy
+    if (oldOrder.trang_thai === "cancelled") {
+      return res.status(400).json({
+        success: false,
+        message: "Không thể cập nhật trạng thái đơn hàng đã bị hủy",
+      });
+    }
+
     const oldStatus = oldOrder.trang_thai;
 
     // Cập nhật trạng thái
@@ -465,15 +429,8 @@ exports.updateOrderStatus = async (req, res) => {
 
       const notification = new Notification({
         user_id: userId,
-        // Format tiếng Việt (chuẩn)
-        tieu_de: title,
-        noi_dung: message,
-        loai: "order_update",
-        duong_dan: `/order/${orderId}`,
-        da_doc: false,
-        // Format tiếng Anh (để tương thích)
-        title: title,
-        message: message,
+        title,
+        message,
         type: "order",
         link: `/order/${orderId}`,
         is_read: false,
@@ -507,6 +464,7 @@ exports.updateOrderStatus = async (req, res) => {
 exports.cancelOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
+    const { ly_do_huy } = req.body; // Lý do hủy đơn hàng
 
     const order = await Order.findById(orderId);
 
@@ -532,8 +490,22 @@ exports.cancelOrder = async (req, res) => {
       });
     }
 
+    // Kiểm tra lý do hủy
+    if (!ly_do_huy || ly_do_huy.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng nhập lý do hủy đơn hàng",
+      });
+    }
+
     order.trang_thai = "cancelled";
+    order.ly_do_huy = ly_do_huy.trim();
     await order.save();
+
+    console.log("✅ Order cancelled:", {
+      order_id: orderId,
+      reason: ly_do_huy,
+    });
 
     res.json({
       success: true,
@@ -549,11 +521,14 @@ exports.cancelOrder = async (req, res) => {
   }
 };
 
-// Xóa đơn hàng
+/**
+ * Xóa đơn hàng (Admin only)
+ * DELETE /api/order/:orderId
+ */
 exports.deleteOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
-    
+
     console.log(`\n========== DELETE ORDER ==========`);
     console.log(`Order ID: ${orderId}`);
 
@@ -585,12 +560,6 @@ exports.deleteOrder = async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Lỗi khi xóa đơn hàng:", err);
-    if (err.name === "CastError") {
-      return res.status(400).json({
-        success: false,
-        message: "ID đơn hàng không hợp lệ",
-      });
-    }
     res.status(500).json({
       success: false,
       error: err.message || "Lỗi server khi xóa đơn hàng",

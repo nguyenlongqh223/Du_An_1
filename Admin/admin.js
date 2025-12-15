@@ -147,47 +147,29 @@ async function loadData(type) {
         switch(type) {
             case 'customers':
                 const usersResponse = await apiCall('/user');
-                console.log('Users API Response:', usersResponse);
-                
-                // Xử lý response - có thể là array hoặc object với data/users
-                let users = [];
+                // Handle both wrapped and array formats
+                let usersRaw = [];
                 if (Array.isArray(usersResponse)) {
-                    users = usersResponse;
-                } else if (usersResponse.success && usersResponse.data) {
-                    users = usersResponse.data;
-                } else if (usersResponse.users) {
-                    users = usersResponse.users;
-                } else if (usersResponse.data) {
-                    users = usersResponse.data;
+                    usersRaw = usersResponse;
+                } else if (usersResponse && Array.isArray(usersResponse.data)) {
+                    usersRaw = usersResponse.data;
+                } else if (usersResponse && Array.isArray(usersResponse.users)) {
+                    usersRaw = usersResponse.users;
                 }
-                
-                console.log(`Found ${users.length} users`);
-                
+
                 // Transform users data to match expected format
-                return users.map(user => {
-                    // Xử lý status: chuyển "HOẠT ĐỘNG" thành "active", các giá trị khác thành "active" mặc định
-                    let status = 'active';
-                    if (user.trang_thai) {
-                        if (user.trang_thai === 'active' || user.trang_thai === 'HOẠT ĐỘNG') {
-                            status = 'active';
-                        } else if (user.trang_thai === 'inactive' || user.trang_thai === 'NGỪNG HOẠT ĐỘNG') {
-                            status = 'inactive';
-                        }
-                    }
-                    
-                    return {
-                        id: user._id || user.id,
-                        _id: user._id || user.id,
-                        name: user.ho_ten || user.ten_dang_nhap || 'N/A',
-                        ho_ten: user.ho_ten || '',
-                        ten_dang_nhap: user.ten_dang_nhap || '',
-                        email: user.email || 'N/A',
-                        phone: user.so_dien_thoai || 'N/A',
-                        so_dien_thoai: user.so_dien_thoai || '',
-                        dia_chi: user.dia_chi || '',
-                        status: status
-                    };
-                });
+                return usersRaw.map(user => ({
+                    id: user._id || user.id,
+                    _id: user._id || user.id,
+                    name: user.ho_ten || user.ten_dang_nhap || '',
+                    ho_ten: user.ho_ten,
+                    ten_dang_nhap: user.ten_dang_nhap,
+                    email: user.email,
+                    phone: user.so_dien_thoai || 'N/A',
+                    so_dien_thoai: user.so_dien_thoai,
+                    dia_chi: user.dia_chi,
+                    status: user.trang_thai || 'active'
+                }));
             
             case 'orders':
                 const ordersResponse = await apiCall('/order');
@@ -208,12 +190,25 @@ async function loadData(type) {
                 
                 // Transform orders data
                 return orders.map(order => {
-                    // Handle user_id - can be ObjectId string or populated object
+                    // Handle user info - ưu tiên lấy từ order.user (đã populate), sau đó mới từ order.user_id
+                    let customerId = '';
                     let customerName = 'N/A';
-                    if (order.user_id) {
-                        if (typeof order.user_id === 'object') {
-                            customerName = order.user_id.ho_ten || order.user_id.email || order.user_id.toString();
+                    let customerPhone = '';
+                    
+                    if (order.user) {
+                        // Backend đã populate và trả về trong field user
+                        customerId = order.user._id || order.user_id || '';
+                        customerName = order.user.ho_ten || order.user.ten_dang_nhap || order.user.email || 'N/A';
+                        customerPhone = order.user.so_dien_thoai || '';
+                    } else if (order.user_id) {
+                        // Fallback: nếu user_id là object (populated)
+                        if (typeof order.user_id === 'object' && order.user_id !== null) {
+                            customerId = order.user_id._id || order.user_id.id || '';
+                            customerName = order.user_id.ho_ten || order.user_id.ten_dang_nhap || order.user_id.email || customerId.toString();
+                            customerPhone = order.user_id.so_dien_thoai || '';
                         } else {
+                            // Chỉ là ID string, không có thông tin
+                            customerId = order.user_id.toString();
                             customerName = order.user_id.toString();
                         }
                     }
@@ -222,13 +217,14 @@ async function loadData(type) {
                         id: order._id || order.id,
                         _id: order._id || order.id,
                         customer: customerName,
-                        customerId: typeof order.user_id === 'object' ? order.user_id._id : order.user_id,
+                        customerId,
+                        customerPhone,
                         items: order.items || [],
                         total: order.tong_tien || 0,
                         date: order.createdAt || order.updatedAt || new Date(),
                         status: order.trang_thai || 'pending',
                         address: order.dia_chi_giao_hang || '',
-                        phone: order.so_dien_thoai || ''
+                        phone: order.so_dien_thoai || customerPhone || ''
                     };
                 });
             

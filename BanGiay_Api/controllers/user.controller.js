@@ -20,7 +20,7 @@ exports.getAllUsers = async (req, res) => {
         email: userObj.email || "",
         so_dien_thoai: userObj.so_dien_thoai || "",
         dia_chi: userObj.dia_chi || "",
-        trang_thai: userObj.trang_thai || "active", // Mặc định là "active" nếu không có
+        trang_thai: "HOẠT ĐỘNG", // Có thể thêm field trang_thai vào User model sau
         createdAt: userObj.createdAt,
         updatedAt: userObj.updatedAt
       };
@@ -60,45 +60,11 @@ exports.getAllUsers = async (req, res) => {
 // Lấy User theo ID
 exports.getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select("-mat_khau -otp -otpExpires");
-    
-    if (!user) {
-      return res.status(404).json({ 
-        success: false,
-        message: "User không tồn tại" 
-      });
-    }
-    
-    const userObj = user.toObject();
-    const formattedUser = {
-      _id: String(userObj._id),
-      ten_dang_nhap: userObj.ten_dang_nhap || "",
-      ho_ten: userObj.ho_ten || "",
-      email: userObj.email || "",
-      so_dien_thoai: userObj.so_dien_thoai || "",
-      dia_chi: userObj.dia_chi || "",
-      trang_thai: userObj.trang_thai || "active", // Mặc định là "active" nếu không có
-      createdAt: userObj.createdAt,
-      updatedAt: userObj.updatedAt
-    };
-    
-    res.json({
-      success: true,
-      user: formattedUser,
-      data: formattedUser
-    });
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: "User không tồn tại" });
+    res.json(user);
   } catch (err) {
-    console.error("❌ Error getting user by ID:", err);
-    if (err.name === "CastError") {
-      return res.status(400).json({ 
-        success: false,
-        message: "ID user không hợp lệ" 
-      });
-    }
-    res.status(500).json({ 
-      success: false,
-      error: err.message || "Lỗi server khi lấy thông tin user" 
-    });
+    res.status(500).json({ error: err.message });
   }
 };
 

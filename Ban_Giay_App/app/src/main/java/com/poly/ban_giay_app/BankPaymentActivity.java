@@ -200,18 +200,44 @@ public class BankPaymentActivity extends AppCompatActivity {
 
                 if (response.isSuccessful() && response.body() != null) {
                     BaseResponse<OrderResponse> body = response.body();
+                    android.util.Log.d("BankPaymentActivity", "Response success: " + body.getSuccess());
+                    android.util.Log.d("BankPaymentActivity", "Response message: " + body.getMessage());
+                    
                     if (body.getSuccess()) {
-                        Toast.makeText(BankPaymentActivity.this, "Đặt hàng thành công!", Toast.LENGTH_SHORT).show();
+                        OrderResponse orderResponse = body.getData();
+                        if (orderResponse != null) {
+                            android.util.Log.d("BankPaymentActivity", "✅ Order created successfully!");
+                            android.util.Log.d("BankPaymentActivity", "Order ID: " + orderResponse.getId());
+                            android.util.Log.d("BankPaymentActivity", "Order Total: " + orderResponse.getTongTien());
+                            
+                            // Log order response JSON
+                            try {
+                                com.google.gson.Gson gson = new com.google.gson.Gson();
+                                String orderJson = gson.toJson(orderResponse);
+                                android.util.Log.d("BankPaymentActivity", "Order Response JSON: " + orderJson);
+                            } catch (Exception e) {
+                                android.util.Log.e("BankPaymentActivity", "Error serializing order response", e);
+                            }
+                            
+                            Toast.makeText(BankPaymentActivity.this, "Đặt hàng thành công! ID: " + orderResponse.getId(), Toast.LENGTH_LONG).show();
+                        } else {
+                            android.util.Log.w("BankPaymentActivity", "⚠️ Order created but response data is null");
+                            Toast.makeText(BankPaymentActivity.this, "Đặt hàng thành công!", Toast.LENGTH_SHORT).show();
+                        }
+                        
                         cartManager.removeSelectedItems();
                         Intent intent = new Intent(BankPaymentActivity.this, OrderActivity.class);
                         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                        intent.putExtra("shouldReload", true);
                         startActivity(intent);
                         finish();
                     } else {
                         String errorMsg = body.getMessage() != null ? body.getMessage() : "Không thể tạo đơn hàng";
+                        android.util.Log.e("BankPaymentActivity", "❌ Order creation failed: " + errorMsg);
                         Toast.makeText(BankPaymentActivity.this, errorMsg, Toast.LENGTH_LONG).show();
                     }
                 } else {
+                    android.util.Log.e("BankPaymentActivity", "❌ Response not successful. Code: " + response.code());
                     Toast.makeText(BankPaymentActivity.this, "Lỗi khi xử lý thanh toán (Code: " + response.code() + ")", Toast.LENGTH_LONG).show();
                 }
             }

@@ -296,18 +296,44 @@ public class CreditCardActivity extends AppCompatActivity {
 
                 if (response.isSuccessful() && response.body() != null) {
                     BaseResponse<OrderResponse> body = response.body();
+                    android.util.Log.d("CreditCardActivity", "Response success: " + body.getSuccess());
+                    android.util.Log.d("CreditCardActivity", "Response message: " + body.getMessage());
+                    
                     if (body.getSuccess()) {
-                        Toast.makeText(CreditCardActivity.this, "Đặt hàng thành công!", Toast.LENGTH_SHORT).show();
+                        OrderResponse orderResponse = body.getData();
+                        if (orderResponse != null) {
+                            android.util.Log.d("CreditCardActivity", "✅ Order created successfully!");
+                            android.util.Log.d("CreditCardActivity", "Order ID: " + orderResponse.getId());
+                            android.util.Log.d("CreditCardActivity", "Order Total: " + orderResponse.getTongTien());
+                            
+                            // Log order response JSON
+                            try {
+                                com.google.gson.Gson gson = new com.google.gson.Gson();
+                                String orderJson = gson.toJson(orderResponse);
+                                android.util.Log.d("CreditCardActivity", "Order Response JSON: " + orderJson);
+                            } catch (Exception e) {
+                                android.util.Log.e("CreditCardActivity", "Error serializing order response", e);
+                            }
+                            
+                            Toast.makeText(CreditCardActivity.this, "Đặt hàng thành công! ID: " + orderResponse.getId(), Toast.LENGTH_LONG).show();
+                        } else {
+                            android.util.Log.w("CreditCardActivity", "⚠️ Order created but response data is null");
+                            Toast.makeText(CreditCardActivity.this, "Đặt hàng thành công!", Toast.LENGTH_SHORT).show();
+                        }
+                        
                         cartManager.removeSelectedItems();
                         Intent intent = new Intent(CreditCardActivity.this, OrderActivity.class);
                         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                        intent.putExtra("shouldReload", true);
                         startActivity(intent);
                         finish();
                     } else {
                         String errorMsg = body.getMessage() != null ? body.getMessage() : "Không thể tạo đơn hàng";
+                        android.util.Log.e("CreditCardActivity", "❌ Order creation failed: " + errorMsg);
                         Toast.makeText(CreditCardActivity.this, errorMsg, Toast.LENGTH_LONG).show();
                     }
                 } else {
+                    android.util.Log.e("CreditCardActivity", "❌ Response not successful. Code: " + response.code());
                     Toast.makeText(CreditCardActivity.this, "Lỗi khi xử lý thanh toán (Code: " + response.code() + ")", Toast.LENGTH_LONG).show();
                 }
             }
