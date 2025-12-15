@@ -202,10 +202,11 @@
                     android:layout_height="52dp"
                     android:layout_weight="1"
                     android:text="37"
+
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:layout_marginEnd="8dp"
-                    android:background="@drawable/bg_size_button"
+                    android:background="@drawable/bg_size_button_selector"
                     android:textColor="#FFFFFF"
                     android:elevation="2dp" />
 
@@ -218,8 +219,9 @@
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:layout_marginEnd="8dp"
-                    android:background="@drawable/bg_size_button"
+                    android:background="@drawable/bg_size_button_selector"
                     android:textColor="#FFFFFF"
+
                     android:elevation="2dp" />
 
                 <Button
@@ -230,7 +232,7 @@
                     android:text="39"
                     android:textSize="18sp"
                     android:textStyle="bold"
-                    android:background="@drawable/bg_size_button"
+                    android:background="@drawable/bg_size_button_selector"
                     android:textColor="#FFFFFF"
                     android:elevation="2dp" />
             </LinearLayout>

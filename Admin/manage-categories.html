@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Danh mục - Admin Panel</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .categories-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .search-container {
+            flex: 1;
+            min-width: 250px;
+            position: relative;
+        }
+        
+        .search-container input {
+            width: 100%;
+            padding: 12px 40px 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .search-container input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-dashboard {
+            padding: 12px 24px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-dashboard:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+        
+        .btn-add {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-add:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-edit {
+            padding: 6px 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .btn-edit:hover {
+            background: #0056b3;
+        }
+        
+        .btn-delete {
+            padding: 6px 12px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .btn-delete:hover {
+            background: #c82333;
+        }
+        
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            overflow: auto;
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-header h2 {
+            color: #667eea;
+            margin: 0;
+        }
+        
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        
+        .close:hover {
+            color: #000;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .form-group-full {
+            grid-column: 1 / -1;
+        }
+        
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .btn-cancel {
+            padding: 10px 20px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn-cancel:hover {
+            background: #5a6268;
+        }
+        
+        .btn-save {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .btn-save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .categories-header {
+                flex-direction: column;
+            }
+            
+            .action-buttons {
+                width: 100%;
+            }
+            
+            .btn-dashboard,
+            .btn-add {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Quản lý Danh mục</h1>
+                <p class="admin-info"></p>
+            </div>
+            <button class="logout-btn" onclick="logout()">Đăng xuất</button>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="dashboard.html" class="nav-item">Dashboard</a>
+            <a href="manage-customers.html" class="nav-item">Quản lý Khách hàng</a>
+            <a href="manage-orders.html" class="nav-item">Quản lý Đơn hàng</a>
+            <a href="manage-products.html" class="nav-item">Quản lý Sản phẩm</a>
+            <a href="manage-categories.html" class="nav-item active">Quản lý Danh mục</a>
+        </nav>
+
+        <div class="content-box">
+            <div class="categories-header">
+                <div class="search-container">
+                    <input type="text" id="searchInput" placeholder="🔍 Tìm kiếm theo tên danh mục..." onkeyup="searchCategories()">
+                </div>
+                <div class="action-buttons">
+                    <button class="btn-dashboard" onclick="window.location.href='dashboard.html'">
+                        📊 Về Dashboard
+                    </button>
+                    <button class="btn-add" onclick="openAddModal()">
+                        ➕ Thêm danh mục
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table id="categoriesTable">
+                    <thead>
+                        <tr>
+                            <th>TÊN DANH MỤC</th>
+                            <th>SỐ LƯỢNG</th>
+                            <th>THAO TÁC</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Thêm/Sửa danh mục -->
+    <div id="categoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Thêm danh mục mới</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <form id="categoryForm" onsubmit="saveCategory(event)">
+                <input type="hidden" id="categoryId">
+                
+                <div class="form-group form-group-full">
+                    <label for="ten_danh_muc">Tên danh mục *</label>
+                    <input type="text" id="ten_danh_muc" required>
+                </div>
+                
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal()">Hủy</button>
+                    <button type="submit" class="btn-save">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+    <script>
+        let allCategories = [];
+        let allProducts = [];
+
+        // Load categories and products
+        async function loadCategories() {
+            const tbody = document.querySelector('#categoriesTable tbody');
+            showLoading('categoriesTable');
+            
+            try {
+                // Load both categories and products
+                const [categoriesRes, productsRes] = await Promise.all([
+                    apiCall('/category'),
+                    loadData('products')
+                ]);
+                
+                const categories = categoriesRes.data || categoriesRes || [];
+                allCategories = Array.isArray(categories) ? categories : [];
+                allProducts = Array.isArray(productsRes) ? productsRes : [];
+                
+                displayCategories(allCategories);
+            } catch (error) {
+                console.error('Error loading categories:', error);
+                showError('categoriesTable', 'Không thể tải dữ liệu. Vui lòng kiểm tra kết nối API.');
+            }
+        }
+
+        // Count products in a category
+        function countProductsInCategory(categoryName) {
+            if (!categoryName || !allProducts) return 0;
+            return allProducts.filter(product => product.danh_muc === categoryName).length;
+        }
+
+        // Display categories
+        function displayCategories(categories) {
+            const tbody = document.querySelector('#categoriesTable tbody');
+            tbody.innerHTML = '';
+            
+            if (categories.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px;">Không tìm thấy danh mục nào</td></tr>';
+                return;
+            }
+            
+            categories.forEach(category => {
+                const row = document.createElement('tr');
+                const productCount = countProductsInCategory(category.ten_danh_muc);
+                row.innerHTML = `
+                    <td>${category.ten_danh_muc || 'N/A'}</td>
+                    <td>${productCount} sản phẩm</td>
+                    <td>
+                        <button class="btn-edit" onclick="openEditModal('${category._id || category.id}')">Sửa</button>
+                        <button class="btn-delete" onclick="deleteCategory('${category._id || category.id}')">Xóa</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Search categories
+        function searchCategories() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = allCategories.filter(category => {
+                const name = (category.ten_danh_muc || '').toLowerCase();
+                return name.includes(searchTerm);
+            });
+            displayCategories(filtered);
+        }
+
+        // Open add modal
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = 'Thêm danh mục mới';
+            document.getElementById('categoryForm').reset();
+            document.getElementById('categoryId').value = '';
+            document.getElementById('categoryModal').style.display = 'block';
+        }
+
+        // Open edit modal
+        async function openEditModal(categoryId) {
+            try {
+                const response = await apiCall(`/category/${categoryId}`);
+                const category = response.data || response.category || response;
+                
+                document.getElementById('modalTitle').textContent = 'Sửa danh mục';
+                document.getElementById('categoryId').value = categoryId;
+                document.getElementById('ten_danh_muc').value = category.ten_danh_muc || '';
+                
+                document.getElementById('categoryModal').style.display = 'block';
+            } catch (error) {
+                alert('Không thể tải thông tin danh mục: ' + error.message);
+            }
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('categoryModal').style.display = 'none';
+        }
+
+        // Save category
+        async function saveCategory(event) {
+            event.preventDefault();
+            
+            const categoryId = document.getElementById('categoryId').value;
+            const categoryData = {
+                ten_danh_muc: document.getElementById('ten_danh_muc').value.trim()
+            };
+            
+            if (!categoryData.ten_danh_muc) {
+                alert('Vui lòng nhập tên danh mục!');
+                return;
+            }
+            
+            try {
+                if (categoryId) {
+                    // Update
+                    const response = await apiCall(`/category/${categoryId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(categoryData)
+                    });
+                    
+                    if (response && response.success !== false) {
+                        alert('Cập nhật danh mục thành công!');
+                        closeModal();
+                        loadCategories();
+                    } else {
+                        throw new Error(response?.message || 'Không thể cập nhật danh mục');
+                    }
+                } else {
+                    // Create
+                    const response = await apiCall('/category', {
+                        method: 'POST',
+                        body: JSON.stringify(categoryData)
+                    });
+                    
+                    if (response && response.success !== false) {
+                        alert('Thêm danh mục thành công!');
+                        closeModal();
+                        loadCategories();
+                    } else {
+                        throw new Error(response?.message || 'Không thể thêm danh mục');
+                    }
+                }
+            } catch (error) {
+                const errorMsg = error.message || 'Không thể lưu danh mục';
+                console.error('Error saving category:', error);
+                if (errorMsg.includes('duplicate') || errorMsg.includes('đã tồn tại') || errorMsg.includes('unique')) {
+                    alert('Lỗi: Tên danh mục đã tồn tại!');
+                } else if (errorMsg.includes('404') || errorMsg.includes('endpoint')) {
+                    alert('Lỗi: API endpoint không tồn tại. Vui lòng kiểm tra backend server có endpoint /api/category không.');
+                } else {
+                    alert('Lỗi: ' + errorMsg);
+                }
+            }
+        }
+
+        // Delete category
+        async function deleteCategory(categoryId) {
+            if (!confirm('Bạn có chắc chắn muốn ẩn danh mục này?\n\nDữ liệu vẫn được giữ trong database, chỉ ẩn khỏi danh sách.')) {
+                return;
+            }
+            
+            try {
+                const response = await apiCall(`/category/${categoryId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response && response.success !== false) {
+                    alert('Đã ẩn danh mục thành công (dữ liệu vẫn được giữ trong database)!');
+                    loadCategories();
+                } else {
+                    throw new Error(response?.message || 'Không thể ẩn danh mục');
+                }
+            } catch (error) {
+                const errorMsg = error.message || 'Không thể ẩn danh mục';
+                alert('Lỗi: ' + errorMsg);
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('categoryModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Load categories on page load
+        document.addEventListener('DOMContentLoaded', loadCategories);
+    </script>
+</body>
+</html>
+

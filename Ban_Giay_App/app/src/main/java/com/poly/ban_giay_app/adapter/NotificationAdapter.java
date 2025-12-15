@@ -67,13 +67,15 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
     }
 
     static class VH extends RecyclerView.ViewHolder {
-        TextView tvTitle, tvMessage, tvTime;
+        TextView tvTitle, tvMessage, tvTime, tvProductName, tvCancellationReason;
 
         VH(@NonNull View itemView) {
             super(itemView);
             tvTitle = itemView.findViewById(R.id.tvTitle);
             tvMessage = itemView.findViewById(R.id.tvMessage);
             tvTime = itemView.findViewById(R.id.tvTime);
+            tvProductName = itemView.findViewById(R.id.tvProductName);
+            tvCancellationReason = itemView.findViewById(R.id.tvCancellationReason);
             
             // Log để debug
             android.util.Log.d("NotificationAdapter", "VH constructor:");
@@ -81,6 +83,8 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
             android.util.Log.d("NotificationAdapter", "  - tvTitle found: " + (tvTitle != null));
             android.util.Log.d("NotificationAdapter", "  - tvMessage found: " + (tvMessage != null));
             android.util.Log.d("NotificationAdapter", "  - tvTime found: " + (tvTime != null));
+            android.util.Log.d("NotificationAdapter", "  - tvProductName found: " + (tvProductName != null));
+            android.util.Log.d("NotificationAdapter", "  - tvCancellationReason found: " + (tvCancellationReason != null));
             
             if (tvTitle == null || tvMessage == null || tvTime == null) {
                 android.util.Log.e("NotificationAdapter", "  - ❌ Some TextView is NULL! Check item_notification.xml layout");
@@ -127,11 +131,92 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
                 android.util.Log.e("NotificationAdapter", "  - tvTime is NULL!");
             }
 
+            // Hiển thị tên sản phẩm nếu có
+            String productName = item.getTenSanPham();
+            android.util.Log.d("NotificationAdapter", "  - Checking product name: " + productName);
+            
+            // Nếu không có trong field trực tiếp, thử lấy từ metadata
+            if ((productName == null || productName.trim().isEmpty()) && item.getMetadata() != null) {
+                try {
+                    // Metadata có thể là Map hoặc object khác
+                    if (item.getMetadata() instanceof java.util.Map) {
+                        @SuppressWarnings("unchecked")
+                        java.util.Map<String, Object> metadata = (java.util.Map<String, Object>) item.getMetadata();
+                        if (metadata.containsKey("ten_san_pham")) {
+                            productName = String.valueOf(metadata.get("ten_san_pham"));
+                        } else if (metadata.containsKey("product_name")) {
+                            productName = String.valueOf(metadata.get("product_name"));
+                        } else if (metadata.containsKey("san_pham")) {
+                            // Có thể là object
+                            Object sanPhamObj = metadata.get("san_pham");
+                            if (sanPhamObj instanceof java.util.Map) {
+                                @SuppressWarnings("unchecked")
+                                java.util.Map<String, Object> sanPham = (java.util.Map<String, Object>) sanPhamObj;
+                                if (sanPham.containsKey("ten")) {
+                                    productName = String.valueOf(sanPham.get("ten"));
+                                } else if (sanPham.containsKey("name")) {
+                                    productName = String.valueOf(sanPham.get("name"));
+                                }
+                            }
+                        }
+                        android.util.Log.d("NotificationAdapter", "  - Product name from metadata: " + productName);
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("NotificationAdapter", "  - Error parsing metadata: " + e.getMessage());
+                }
+            }
+            
+            if (tvProductName != null) {
+                if (productName != null && !productName.trim().isEmpty()) {
+                    tvProductName.setText("Sản phẩm: " + productName);
+                    tvProductName.setVisibility(View.VISIBLE);
+                    android.util.Log.d("NotificationAdapter", "  - ✅ Product name displayed: " + productName);
+                } else {
+                    tvProductName.setVisibility(View.GONE);
+                    android.util.Log.d("NotificationAdapter", "  - ❌ No product name found");
+                }
+            }
+
+            // Hiển thị lý do hủy đơn nếu có
+            String cancellationReason = item.getLyDoHuy();
+            android.util.Log.d("NotificationAdapter", "  - Checking cancellation reason: " + cancellationReason);
+            
+            // Nếu không có trong field trực tiếp, thử lấy từ metadata
+            if ((cancellationReason == null || cancellationReason.trim().isEmpty()) && item.getMetadata() != null) {
+                try {
+                    if (item.getMetadata() instanceof java.util.Map) {
+                        @SuppressWarnings("unchecked")
+                        java.util.Map<String, Object> metadata = (java.util.Map<String, Object>) item.getMetadata();
+                        if (metadata.containsKey("ly_do_huy")) {
+                            cancellationReason = String.valueOf(metadata.get("ly_do_huy"));
+                        } else if (metadata.containsKey("cancellation_reason")) {
+                            cancellationReason = String.valueOf(metadata.get("cancellation_reason"));
+                        }
+                        android.util.Log.d("NotificationAdapter", "  - Cancellation reason from metadata: " + cancellationReason);
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("NotificationAdapter", "  - Error parsing metadata for cancellation: " + e.getMessage());
+                }
+            }
+            
+            if (tvCancellationReason != null) {
+                if (cancellationReason != null && !cancellationReason.trim().isEmpty()) {
+                    tvCancellationReason.setText("Lý do hủy: " + cancellationReason);
+                    tvCancellationReason.setVisibility(View.VISIBLE);
+                    android.util.Log.d("NotificationAdapter", "  - ✅ Cancellation reason displayed: " + cancellationReason);
+                } else {
+                    tvCancellationReason.setVisibility(View.GONE);
+                    android.util.Log.d("NotificationAdapter", "  - ❌ No cancellation reason found");
+                }
+            }
+
             // Dim unread vs read
             float alpha = item.isRead() ? 0.6f : 1f;
             if (tvTitle != null) tvTitle.setAlpha(alpha);
             if (tvMessage != null) tvMessage.setAlpha(alpha);
             if (tvTime != null) tvTime.setAlpha(alpha);
+            if (tvProductName != null) tvProductName.setAlpha(alpha);
+            if (tvCancellationReason != null) tvCancellationReason.setAlpha(alpha);
             
             android.util.Log.d("NotificationAdapter", "  - ✅ Bind completed");
         }

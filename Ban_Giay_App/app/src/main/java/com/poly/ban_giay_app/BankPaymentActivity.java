@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -28,9 +29,13 @@ import com.poly.ban_giay_app.network.model.BaseResponse;
 import com.poly.ban_giay_app.network.model.OrderResponse;
 import com.poly.ban_giay_app.network.request.OrderRequest;
 import com.poly.ban_giay_app.network.request.PaymentRequest;
+import com.poly.ban_giay_app.models.TransactionHistory;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.WriterException;
@@ -220,6 +225,9 @@ public class BankPaymentActivity extends AppCompatActivity {
                             }
                             
                             Toast.makeText(BankPaymentActivity.this, "Đặt hàng thành công! ID: " + orderResponse.getId(), Toast.LENGTH_LONG).show();
+                            
+                            // Save transaction history
+                            saveTransactionHistory(orderResponse, "bank_transfer");
                         } else {
                             android.util.Log.w("BankPaymentActivity", "⚠️ Order created but response data is null");
                             Toast.makeText(BankPaymentActivity.this, "Đặt hàng thành công!", Toast.LENGTH_SHORT).show();
@@ -283,6 +291,9 @@ public class BankPaymentActivity extends AppCompatActivity {
                     BaseResponse<Object> baseResponse = response.body();
                     if (baseResponse.getSuccess()) {
                         Toast.makeText(BankPaymentActivity.this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
+                        
+                        // Save transaction history for buy now
+                        saveTransactionHistoryBuyNow(productName, productPrice, "bank_transfer");
                         finish();
                     } else {
                         String errorMsg = baseResponse.getMessage() != null ? baseResponse.getMessage() : "Thanh toán thất bại";
@@ -300,6 +311,141 @@ public class BankPaymentActivity extends AppCompatActivity {
                 Toast.makeText(BankPaymentActivity.this, "Lỗi kết nối: " + t.getMessage(), Toast.LENGTH_LONG).show();
             }
         });
+    }
+
+    private void saveTransactionHistory(OrderResponse orderResponse, String paymentType) {
+        try {
+            TransactionHistoryManager transactionManager = TransactionHistoryManager.getInstance(this);
+            SessionManager sessionManager = new SessionManager(this);
+            String userName = sessionManager.getUserName();
+            String productNames = "";
+            long totalAmount = orderResponse.getTongTien() != null ? orderResponse.getTongTien() : 0;
+            
+            int totalQuantity = 0;
+            if (orderResponse.getItems() != null && !orderResponse.getItems().isEmpty()) {
+                List<String> names = new ArrayList<>();
+                for (OrderResponse.OrderItemResponse item : orderResponse.getItems()) {
+                    names.add(item.getTenSanPham());
+                    if (item.getSoLuong() != null) {
+                        totalQuantity += item.getSoLuong();
+                    }
+                }
+                productNames = String.join(", ", names);
+            }
+            
+            String dateStr = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(new Date());
+            String deliveryAddress = sessionManager.getDeliveryAddress();
+            String phoneNumber = sessionManager.getPhone();
+            String orderId = orderResponse.getId();
+            TransactionHistory transaction = new TransactionHistory(
+                userName,
+                productNames.isEmpty() ? "Nhiều sản phẩm" : productNames,
+                totalAmount,
+                dateStr,
+                paymentType,
+                deliveryAddress != null ? deliveryAddress : "",
+                phoneNumber != null ? phoneNumber : "",
+                totalQuantity > 0 ? totalQuantity : 1,
+                orderId != null ? orderId : ""
+            );
+            transactionManager.addTransaction(transaction);
+        } catch (Exception e) {
+            Log.e("BankPaymentActivity", "Error saving transaction history", e);
+        }
+    }
+
+    private void saveTransactionHistoryOld(OrderResponse orderResponse, String paymentType) {
+        if (orderResponse == null || sessionManager == null) {
+            Log.e("BankPaymentActivity", "OrderResponse or SessionManager is null, cannot save transaction history.");
+            return;
+        }
+
+        String userId = sessionManager.getUserId();
+        String email = sessionManager.getEmail();
+        long amount = orderResponse.getTongTien() != null ? orderResponse.getTongTien() : 0;
+
+        StringBuilder productDetails = new StringBuilder();
+        if (orderResponse.getItems() != null) {
+            for (OrderResponse.OrderItemResponse item : orderResponse.getItems()) {
+                productDetails.append(item.getTenSanPham())
+                    .append(" (x").append(item.getSoLuong()).append(", ")
+                    .append(formatPrice(item.getGia()))
+                    .append("), ");
+            }
+        }
+
+        PaymentRequest paymentRequest = new PaymentRequest(
+            userId,
+            email,
+            "Thanh toán đơn hàng " + orderResponse.getId(),
+            productDetails.toString(),
+            paymentType,
+            "", // productName - not needed for full order
+            String.valueOf(amount),
+            0, // quantity - not needed for full order
+            "", // size - not needed for full order
+            orderResponse.getId()
+        );
+
+        ApiService apiService = ApiClient.getApiService();
+        apiService.createPayment(paymentRequest).enqueue(new Callback<BaseResponse<Object>>() {
+            @Override
+            public void onResponse(Call<BaseResponse<Object>> call, Response<BaseResponse<Object>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().getSuccess()) {
+                    Log.d("BankPaymentActivity", "Transaction history saved successfully for order: " + orderResponse.getId());
+                } else {
+                    String errorMsg = response.body() != null ? response.body().getMessage() : "Unknown error";
+                    Log.e("BankPaymentActivity", "Failed to save transaction history: " + errorMsg);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<BaseResponse<Object>> call, Throwable t) {
+                Log.e("BankPaymentActivity", "Error saving transaction history: " + t.getMessage(), t);
+            }
+        });
+    }
+
+    private void saveTransactionHistoryBuyNow(String productName, String productPrice, String paymentType) {
+        try {
+            TransactionHistoryManager transactionManager = TransactionHistoryManager.getInstance(this);
+            SessionManager sessionManager = new SessionManager(this);
+            String userName = sessionManager.getUserName();
+            
+            // Parse price
+            long amount = 0;
+            if (productPrice != null && !productPrice.isEmpty()) {
+                String priceStr = productPrice.replaceAll("[^0-9]", "");
+                if (!priceStr.isEmpty()) {
+                    try {
+                        amount = Long.parseLong(priceStr);
+                    } catch (NumberFormatException e) {
+                        Log.e("BankPaymentActivity", "Error parsing price", e);
+                    }
+                }
+            }
+            
+            String dateStr = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(new Date());
+            String deliveryAddress = sessionManager.getDeliveryAddress();
+            String phoneNumber = sessionManager.getPhone();
+            // Buy now - lấy quantity từ intent hoặc mặc định là 1
+            int quantity = getIntent().getIntExtra("quantity", 1);
+            // Buy now không có orderId, để null
+            TransactionHistory transaction = new TransactionHistory(
+                userName,
+                productName != null ? productName : "Sản phẩm",
+                amount,
+                dateStr,
+                paymentType,
+                deliveryAddress != null ? deliveryAddress : "",
+                phoneNumber != null ? phoneNumber : "",
+                quantity,
+                null // Buy now không tạo order
+            );
+            transactionManager.addTransaction(transaction);
+        } catch (Exception e) {
+            Log.e("BankPaymentActivity", "Error saving transaction history", e);
+        }
     }
 
     private void displayBankInfo() {
@@ -436,4 +582,3 @@ public class BankPaymentActivity extends AppCompatActivity {
         }
     }
 }
-

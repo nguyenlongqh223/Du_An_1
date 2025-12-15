@@ -228,4 +228,12 @@ public interface ApiService {
     // Tạo payment mới
     @POST("payment")
     Call<BaseResponse<Object>> createPayment(@Body PaymentRequest request);
+
+    // ==================== USER APIs ====================
+    // PUT http://YOUR_IP:3000/api/auth/update-profile
+    // Cập nhật thông tin cá nhân
+    @PUT("auth/update-profile")
+    Call<BaseResponse<UserResponse>> updateUserProfile(
+            @Body com.poly.ban_giay_app.network.request.UpdateProfileRequest request
+    );
 }

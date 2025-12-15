@@ -157,19 +157,25 @@ async function loadData(type) {
                     usersRaw = usersResponse.users;
                 }
 
+                console.log('Raw users from API:', usersRaw); // Debug log
+
                 // Transform users data to match expected format
-                return usersRaw.map(user => ({
-                    id: user._id || user.id,
-                    _id: user._id || user.id,
-                    name: user.ho_ten || user.ten_dang_nhap || '',
-                    ho_ten: user.ho_ten,
-                    ten_dang_nhap: user.ten_dang_nhap,
-                    email: user.email,
-                    phone: user.so_dien_thoai || 'N/A',
-                    so_dien_thoai: user.so_dien_thoai,
-                    dia_chi: user.dia_chi,
-                    status: user.trang_thai || 'active'
-                }));
+                return usersRaw.map(user => {
+                    const transformed = {
+                        id: user._id || user.id,
+                        _id: user._id || user.id,
+                        name: user.ho_ten || user.ten_dang_nhap || '',
+                        ho_ten: user.ho_ten,
+                        ten_dang_nhap: user.ten_dang_nhap,
+                        email: user.email,
+                        phone: user.so_dien_thoai || user.phone || '',
+                        so_dien_thoai: user.so_dien_thoai || user.phone || '',
+                        dia_chi: user.dia_chi || user.address || '',
+                        status: user.trang_thai || 'active'
+                    };
+                    console.log('Transformed user:', transformed); // Debug log
+                    return transformed;
+                });
             
             case 'orders':
                 const ordersResponse = await apiCall('/order');

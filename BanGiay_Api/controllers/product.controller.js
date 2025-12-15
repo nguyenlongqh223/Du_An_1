@@ -81,8 +81,10 @@ exports.getAllProducts = async (req, res) => {
       sort_order = "desc",
     } = req.query;
 
-    // Xây dựng query
-    const query = {};
+    // Xây dựng query - exclude deleted products
+    const query = {
+      is_deleted: { $ne: true }
+    };
 
     // Lọc theo danh mục
     if (danh_muc) {
@@ -223,7 +225,10 @@ exports.getBestSellingProducts = async (req, res) => {
     console.log(`\n========== GET BEST SELLING PRODUCTS ==========`);
     console.log(`Limit: ${limit}`);
     
-    const products = await Product.find({ trang_thai: "active" })
+    const products = await Product.find({ 
+      trang_thai: "active",
+      is_deleted: { $ne: true }
+    })
       .sort({ so_luong_da_ban: -1 })
       .limit(limit);
     
@@ -260,7 +265,10 @@ exports.getNewestProducts = async (req, res) => {
     console.log(`\n========== GET NEWEST PRODUCTS ==========`);
     console.log(`Limit: ${limit}`);
     
-    const products = await Product.find({ trang_thai: "active" })
+    const products = await Product.find({ 
+      trang_thai: "active",
+      is_deleted: { $ne: true }
+    })
       .sort({ createdAt: -1 })
       .limit(limit);
     
@@ -293,6 +301,7 @@ exports.getHotTrendProducts = async (req, res) => {
     // Lấy sản phẩm hot trend: sản phẩm trong danh mục "unisex" hoặc có đánh giá cao
     const products = await Product.find({ 
       trang_thai: "active",
+      is_deleted: { $ne: true },
       $or: [
         { danh_muc: "unisex" },
         { danh_gia: { $gte: 4.5 } }
@@ -345,6 +354,7 @@ exports.getProductsByCategory = async (req, res) => {
         { danh_muc: categoryName }
       ],
       trang_thai: "active",
+      is_deleted: { $ne: true },
     });
     
     console.log(`Found ${products.length} products with exact category name "${categoryName}"`);
@@ -382,6 +392,7 @@ exports.getProductsByCategory = async (req, res) => {
       
       // Tìm với enum mapped
       products = await Product.find({
+        is_deleted: { $ne: true },
         $or: [
           { danh_muc: { $regex: new RegExp(`^${queryCategory}$`, "i") } },
           { danh_muc: queryCategory }
@@ -612,12 +623,12 @@ exports.updateProduct = async (req, res) => {
 exports.deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log(`\n========== DELETE PRODUCT ==========`);
+    console.log(`\n========== SOFT DELETE PRODUCT ==========`);
     console.log(`Product ID: ${id}`);
     
-    const deletedProduct = await Product.findByIdAndDelete(id);
+    const product = await Product.findById(id);
     
-    if (!deletedProduct) {
+    if (!product) {
       console.log(`❌ Product not found: ${id}`);
       return res.status(404).json({ 
         success: false,
@@ -625,18 +636,23 @@ exports.deleteProduct = async (req, res) => {
       });
     }
     
-    console.log(`✅ Product deleted: ${deletedProduct.ten_san_pham}`);
+    // Soft delete - ẩn sản phẩm, giữ trong MongoDB
+    product.is_deleted = true;
+    product.deleted_at = new Date();
+    await product.save();
+    
+    console.log(`✅ Product soft deleted (hidden): ${product.ten_san_pham}`);
     console.log("==========================================\n");
     
     res.json({ 
       success: true,
-      message: "Xóa sản phẩm thành công" 
+      message: "Đã ẩn sản phẩm thành công (dữ liệu vẫn được giữ trong database)" 
     });
   } catch (err) {
-    console.error("❌ Lỗi khi xóa sản phẩm:", err);
+    console.error("❌ Lỗi khi ẩn sản phẩm:", err);
     res.status(500).json({ 
       success: false,
-      message: err.message || "Lỗi server khi xóa sản phẩm" 
+      message: err.message || "Lỗi server khi ẩn sản phẩm" 
     });
   }
 };

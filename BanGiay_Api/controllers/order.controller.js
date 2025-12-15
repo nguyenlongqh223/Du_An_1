@@ -147,6 +147,9 @@ exports.getOrders = async (req, res) => {
 
     console.log("MongoDB query:", JSON.stringify(query));
 
+    // Filter out deleted orders
+    query.is_deleted = { $ne: true };
+    
     const orders = await Order.find(query)
       .sort({ createdAt: -1 }) // Mới nhất trước
       .populate("items.san_pham_id", "ten_san_pham hinh_anh gia_goc gia_khuyen_mai")
@@ -216,6 +219,9 @@ exports.getOrders = async (req, res) => {
         dia_chi_giao_hang: orderObj.dia_chi_giao_hang || "",
         so_dien_thoai: orderObj.so_dien_thoai || "",
         ghi_chu: orderObj.ghi_chu || "",
+        da_thanh_toan: orderObj.da_thanh_toan || false,
+        is_paid: orderObj.is_paid || orderObj.da_thanh_toan || false,
+        ly_do_huy: orderObj.ly_do_huy || "",
         createdAt: orderObj.createdAt,
         updatedAt: orderObj.updatedAt,
       };
@@ -249,8 +255,11 @@ exports.getOrderById = async (req, res) => {
     console.log("=== GET ORDER BY ID ===");
     console.log("Order ID:", orderId);
 
-    // Dùng lean() để lấy plain object, không phải Mongoose document
-    const order = await Order.findById(orderId)
+    // Dùng lean() để lấy plain object, không phải Mongoose document - exclude deleted orders
+    const order = await Order.findOne({ 
+      _id: orderId,
+      is_deleted: { $ne: true }
+    })
       .lean()
       .populate("items.san_pham_id", "ten_san_pham hinh_anh gia_goc gia_khuyen_mai")
       .populate("user_id", "ho_ten email so_dien_thoai ten_dang_nhap");
@@ -325,6 +334,9 @@ exports.getOrderById = async (req, res) => {
       dia_chi_giao_hang: orderObj.dia_chi_giao_hang || "",
       so_dien_thoai: orderObj.so_dien_thoai || "",
       ghi_chu: orderObj.ghi_chu || "",
+      da_thanh_toan: orderObj.da_thanh_toan || false,
+      is_paid: orderObj.is_paid || orderObj.da_thanh_toan || false,
+      ly_do_huy: orderObj.ly_do_huy || "",
       createdAt: orderObj.createdAt,
       updatedAt: orderObj.updatedAt,
     };
@@ -371,7 +383,7 @@ exports.updateOrderStatus = async (req, res) => {
       });
     }
 
-    const validStatuses = ["pending", "confirmed", "shipping", "delivered", "cancelled"];
+    const validStatuses = ["pending", "confirmed", "paid", "delivered", "cancelled"];
     if (!validStatuses.includes(trang_thai)) {
       return res.status(400).json({
         success: false,
@@ -409,7 +421,7 @@ exports.updateOrderStatus = async (req, res) => {
     const statusMessages = {
       pending: "Chờ xác nhận",
       confirmed: "Đã xác nhận",
-      shipping: "Đang giao hàng",
+      paid: "Đã thanh toán",
       delivered: "Đã giao hàng",
       cancelled: "Đã hủy",
     };
@@ -522,14 +534,58 @@ exports.cancelOrder = async (req, res) => {
 };
 
 /**
- * Xóa đơn hàng (Admin only)
+ * Cập nhật trạng thái thanh toán đơn hàng
+ * PUT /api/order/:orderId/payment
+ */
+exports.updatePaymentStatus = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { da_thanh_toan, is_paid } = req.body;
+
+    console.log(`\n========== UPDATE PAYMENT STATUS ==========`);
+    console.log(`Order ID: ${orderId}`);
+    console.log(`Payment Status: ${da_thanh_toan || is_paid}`);
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Đơn hàng không tồn tại",
+      });
+    }
+
+    // Update payment status
+    const paymentStatus = da_thanh_toan !== undefined ? da_thanh_toan : (is_paid !== undefined ? is_paid : false);
+    order.da_thanh_toan = paymentStatus;
+    order.is_paid = paymentStatus;
+    await order.save();
+
+    console.log(`✅ Payment status updated: ${paymentStatus}`);
+    console.log("==========================================\n");
+
+    res.json({
+      success: true,
+      message: `Đã ${paymentStatus ? 'đánh dấu' : 'bỏ đánh dấu'} thanh toán thành công`,
+      data: order,
+    });
+  } catch (err) {
+    console.error("❌ Lỗi khi cập nhật trạng thái thanh toán:", err);
+    res.status(500).json({
+      success: false,
+      error: err.message || "Lỗi server khi cập nhật trạng thái thanh toán",
+    });
+  }
+};
+
+/**
+ * Soft delete đơn hàng (Admin only) - Ẩn đơn hàng, giữ trong MongoDB
  * DELETE /api/order/:orderId
  */
 exports.deleteOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
 
-    console.log(`\n========== DELETE ORDER ==========`);
+    console.log(`\n========== SOFT DELETE ORDER ==========`);
     console.log(`Order ID: ${orderId}`);
 
     const order = await Order.findById(orderId);
@@ -544,25 +600,27 @@ exports.deleteOrder = async (req, res) => {
 
     console.log(`✅ Order found: ${order._id}, Status: ${order.trang_thai}`);
 
-    // Xóa đơn hàng
-    await Order.findByIdAndDelete(orderId);
+    // Soft delete - ẩn đơn hàng, giữ trong MongoDB
+    order.is_deleted = true;
+    order.deleted_at = new Date();
+    await order.save();
 
-    console.log(`✅ Order deleted: ${orderId}`);
+    console.log(`✅ Order soft deleted (hidden): ${orderId}`);
     console.log("==========================================\n");
 
     res.json({
       success: true,
-      message: "Đã xóa đơn hàng thành công",
+      message: "Đã ẩn đơn hàng thành công (dữ liệu vẫn được giữ trong database)",
       data: {
         orderId: orderId,
-        deletedAt: new Date(),
+        deletedAt: order.deleted_at,
       },
     });
   } catch (err) {
-    console.error("❌ Lỗi khi xóa đơn hàng:", err);
+    console.error("❌ Lỗi khi ẩn đơn hàng:", err);
     res.status(500).json({
       success: false,
-      error: err.message || "Lỗi server khi xóa đơn hàng",
+      error: err.message || "Lỗi server khi ẩn đơn hàng",
     });
   }
 };

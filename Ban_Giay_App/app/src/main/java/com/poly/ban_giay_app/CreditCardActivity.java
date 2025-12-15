@@ -26,9 +26,13 @@ import com.poly.ban_giay_app.network.model.BaseResponse;
 import com.poly.ban_giay_app.network.model.OrderResponse;
 import com.poly.ban_giay_app.network.request.OrderRequest;
 import com.poly.ban_giay_app.network.request.PaymentRequest;
+import com.poly.ban_giay_app.models.TransactionHistory;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -316,6 +320,9 @@ public class CreditCardActivity extends AppCompatActivity {
                             }
                             
                             Toast.makeText(CreditCardActivity.this, "Đặt hàng thành công! ID: " + orderResponse.getId(), Toast.LENGTH_LONG).show();
+                            
+                            // Save transaction history
+                            saveTransactionHistory(orderResponse, "credit_card");
                         } else {
                             android.util.Log.w("CreditCardActivity", "⚠️ Order created but response data is null");
                             Toast.makeText(CreditCardActivity.this, "Đặt hàng thành công!", Toast.LENGTH_SHORT).show();
@@ -382,6 +389,11 @@ public class CreditCardActivity extends AppCompatActivity {
                     BaseResponse<Object> baseResponse = response.body();
                     if (baseResponse.getSuccess()) {
                         Toast.makeText(CreditCardActivity.this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
+                        
+                        // Save transaction history for buy now
+                        String productName = product != null ? product.name : "";
+                        String productPrice = calculateTotalPrice();
+                        saveTransactionHistoryBuyNow(productName, productPrice, "credit_card");
                         finish();
                     } else {
                         String errorMsg = baseResponse.getMessage() != null ? baseResponse.getMessage() : "Thanh toán thất bại";
@@ -502,6 +514,89 @@ public class CreditCardActivity extends AppCompatActivity {
         } catch (Exception e) {
             android.util.Log.e("CreditCardActivity", "Error formatting price: " + price, e);
             return String.valueOf(price) + "₫";
+        }
+    }
+
+    private void saveTransactionHistory(OrderResponse order, String paymentMethod) {
+        try {
+            TransactionHistoryManager transactionManager = TransactionHistoryManager.getInstance(this);
+            SessionManager sessionManager = new SessionManager(this);
+            String userName = sessionManager.getUserName();
+            String productNames = "";
+            long totalAmount = order.getTongTien() != null ? order.getTongTien() : 0;
+            
+            int totalQuantity = 0;
+            if (order.getItems() != null && !order.getItems().isEmpty()) {
+                List<String> names = new ArrayList<>();
+                for (OrderResponse.OrderItemResponse item : order.getItems()) {
+                    names.add(item.getTenSanPham());
+                    if (item.getSoLuong() != null) {
+                        totalQuantity += item.getSoLuong();
+                    }
+                }
+                productNames = String.join(", ", names);
+            }
+            
+            String dateStr = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(new Date());
+            String deliveryAddress = sessionManager.getDeliveryAddress();
+            String phoneNumber = sessionManager.getPhone();
+            String orderId = order.getId();
+            TransactionHistory transaction = new TransactionHistory(
+                userName,
+                productNames.isEmpty() ? "Nhiều sản phẩm" : productNames,
+                totalAmount,
+                dateStr,
+                paymentMethod,
+                deliveryAddress != null ? deliveryAddress : "",
+                phoneNumber != null ? phoneNumber : "",
+                totalQuantity > 0 ? totalQuantity : 1,
+                orderId != null ? orderId : ""
+            );
+            transactionManager.addTransaction(transaction);
+        } catch (Exception e) {
+            android.util.Log.e("CreditCardActivity", "Error saving transaction history", e);
+        }
+    }
+
+    private void saveTransactionHistoryBuyNow(String productName, String productPrice, String paymentMethod) {
+        try {
+            TransactionHistoryManager transactionManager = TransactionHistoryManager.getInstance(this);
+            SessionManager sessionManager = new SessionManager(this);
+            String userName = sessionManager.getUserName();
+            
+            // Parse price
+            long amount = 0;
+            if (productPrice != null && !productPrice.isEmpty()) {
+                String priceStr = productPrice.replaceAll("[^0-9]", "");
+                if (!priceStr.isEmpty()) {
+                    try {
+                        amount = Long.parseLong(priceStr);
+                    } catch (NumberFormatException e) {
+                        android.util.Log.e("CreditCardActivity", "Error parsing price", e);
+                    }
+                }
+            }
+            
+            String dateStr = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(new Date());
+            String deliveryAddress = sessionManager.getDeliveryAddress();
+            String phoneNumber = sessionManager.getPhone();
+            // Buy now - lấy quantity từ intent hoặc mặc định là 1
+            int quantity = getIntent().getIntExtra("quantity", 1);
+            // Buy now không có orderId, để null
+            TransactionHistory transaction = new TransactionHistory(
+                userName,
+                productName != null ? productName : "Sản phẩm",
+                amount,
+                dateStr,
+                paymentMethod,
+                deliveryAddress != null ? deliveryAddress : "",
+                phoneNumber != null ? phoneNumber : "",
+                quantity,
+                null // Buy now không tạo order
+            );
+            transactionManager.addTransaction(transaction);
+        } catch (Exception e) {
+            android.util.Log.e("CreditCardActivity", "Error saving transaction history", e);
         }
     }
 

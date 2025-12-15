@@ -13,6 +13,9 @@ const UserSchema = new mongoose.Schema(
     // OTP fields for forgot password
     otp: { type: String },
     otpExpires: { type: Date },
+    // Soft delete fields
+    is_deleted: { type: Boolean, default: false },
+    deleted_at: { type: Date, default: null },
   },
   { timestamps: true }
 );

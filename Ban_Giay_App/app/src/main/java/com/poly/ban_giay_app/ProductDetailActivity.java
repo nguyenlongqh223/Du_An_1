@@ -6,7 +6,6 @@ import android.os.Bundle;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.style.StrikethroughSpan;
-import android.text.style.UnderlineSpan;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -280,28 +279,30 @@ public class ProductDetailActivity extends AppCompatActivity {
         
         selectedSize = size;
         
-        // Reset all buttons - chữ màu trắng, không có gạch chân
+        // Reset all buttons - bỏ selected state
         resetButton(btnSize37, "37");
         resetButton(btnSize38, "38");
         resetButton(btnSize39, "39");
         
-        // Highlight selected button - có gạch chân
+        // Highlight selected button - dùng setBackgroundResource trực tiếp để đảm bảo màu đỏ
         String buttonText = button.getText().toString();
         // Loại bỏ "(Hết)" nếu có
         if (buttonText.contains("(")) {
             buttonText = buttonText.substring(0, buttonText.indexOf("(")).trim();
         }
-        SpannableString spannableString = new SpannableString(buttonText);
-        spannableString.setSpan(new UnderlineSpan(), 0, buttonText.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        button.setText(spannableString);
-        button.setBackgroundResource(R.drawable.bg_size_button_selected);
+        // Set text bình thường
+        button.setText(buttonText);
+        button.setBackgroundResource(R.drawable.bg_size_button_selected); // Set trực tiếp màu đỏ
+        button.setSelected(true); // Vẫn set selected để tương thích
         button.setTextColor(ContextCompat.getColor(this, android.R.color.white));
+        button.refreshDrawableState(); // Refresh để selector cập nhật ngay lập tức
     }
     
     private void resetButton(Button button, String text) {
         // Chỉ reset nếu button đang enabled
         if (button.isEnabled()) {
-            button.setBackgroundResource(R.drawable.bg_size_button);
+            button.setBackgroundResource(R.drawable.bg_size_button_selector); // Reset về selector
+            button.setSelected(false); // Bỏ selected state để về màu teal mặc định
             // Loại bỏ "(Hết)" nếu có trong text
             String cleanText = text;
             if (text.contains("(")) {
@@ -310,6 +311,7 @@ public class ProductDetailActivity extends AppCompatActivity {
             button.setText(cleanText);
             button.setTextColor(ContextCompat.getColor(this, android.R.color.white));
             button.setAlpha(1.0f);
+            button.refreshDrawableState(); // Refresh để selector cập nhật ngay lập tức
         }
     }
 
@@ -905,11 +907,13 @@ public class ProductDetailActivity extends AppCompatActivity {
         button.setClickable(true);
         button.setFocusable(true);
         button.setAlpha(1.0f);
+        button.setSelected(false); // Reset selected state khi enable
         
         // Đảm bảo text chỉ là số size, không có "(Hết)"
         button.setText(size);
-        button.setBackgroundResource(R.drawable.bg_size_button);
+        button.setBackgroundResource(R.drawable.bg_size_button_selector); // Sử dụng selector để có hover effect
         button.setTextColor(ContextCompat.getColor(this, android.R.color.white));
+        button.refreshDrawableState(); // Refresh để selector cập nhật ngay lập tức
         
         Log.d("ProductDetailActivity", "Enabled size button: " + size);
     }

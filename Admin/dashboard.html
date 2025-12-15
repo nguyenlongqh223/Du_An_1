@@ -22,7 +22,6 @@
             <a href="manage-orders.html" class="nav-item">Quản lý Đơn hàng</a>
             <a href="manage-products.html" class="nav-item">Quản lý Sản phẩm</a>
             <a href="manage-categories.html" class="nav-item">Quản lý Danh mục</a>
-            <a href="manage-carts.html" class="nav-item">Quản lý Giỏ hàng</a>
         </nav>
 
         <div class="content-box">
@@ -48,15 +47,16 @@
             </div>
 
             <div class="table-container">
-                <h3>Đơn hàng gần đây</h3>
-                <table id="recentOrders">
+                <h3>Lịch sử giao dịch</h3>
+                <table id="transactionHistory">
                     <thead>
                         <tr>
                             <th>ID</th>
                             <th>Khách hàng</th>
-                            <th>Sản phẩm</th>
+                            <th>Tên sản phẩm</th>
+                            <th>Số sản phẩm</th>
                             <th>Tổng tiền</th>
-                            <th>Ngày</th>
+                            <th>Ngày đặt</th>
                             <th>Trạng thái</th>
                         </tr>
                     </thead>
@@ -77,41 +77,89 @@
                 document.getElementById('totalOrders').textContent = '...';
                 document.getElementById('totalRevenue').textContent = '...';
                 
-                const tbody = document.querySelector('#recentOrders tbody');
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Đang tải dữ liệu...</td></tr>';
+                const tbody = document.querySelector('#transactionHistory tbody');
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Đang tải dữ liệu...</td></tr>';
 
                 // Load data from API
-                const [customers, products, orders] = await Promise.all([
+                const [customers, products, ordersRaw] = await Promise.all([
                     loadData('customers'),
                     loadData('products'),
                     loadData('orders')
                 ]);
+                
+                // Transform orders to ensure customer names are loaded properly
+                const orders = await Promise.all(ordersRaw.map(async (order) => {
+                    // If customer is just an ID, fetch the user info
+                    if (order.customerId && (!order.customer || order.customer === order.customerId)) {
+                        try {
+                            const userRes = await apiCall(`/user/${order.customerId}`);
+                            const user = userRes.user || userRes.data || userRes;
+                            order.customer = user.ho_ten || user.ten_dang_nhap || user.email || order.customer || 'N/A';
+                        } catch (err) {
+                            console.warn(`Could not fetch user ${order.customerId}:`, err);
+                        }
+                    }
+                    return order;
+                }));
 
                 // Update stats
                 document.getElementById('totalCustomers').textContent = customers.length;
                 document.getElementById('totalProducts').textContent = products.length;
                 document.getElementById('totalOrders').textContent = orders.length;
 
-                // Calculate revenue
-                const revenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
-                document.getElementById('totalRevenue').textContent = formatCurrency(revenue);
+                // Calculate revenue for current month
+                const now = new Date();
+                const currentMonth = now.getMonth();
+                const currentYear = now.getFullYear();
+                const monthlyRevenue = orders
+                    .filter(order => {
+                        const orderDate = new Date(order.date);
+                        return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
+                    })
+                    .reduce((sum, order) => sum + (order.total || 0), 0);
+                document.getElementById('totalRevenue').textContent = formatCurrency(monthlyRevenue);
 
-                // Display recent orders
-                const recentOrders = orders.slice(0, 5);
+                // Display all orders (transaction history) - sorted by date (newest first)
+                const sortedOrders = [...orders].sort((a, b) => {
+                    const dateA = new Date(a.date || 0);
+                    const dateB = new Date(b.date || 0);
+                    return dateB - dateA; // Newest first
+                });
+                
                 tbody.innerHTML = '';
                 
-                if (recentOrders.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Chưa có đơn hàng nào</td></tr>';
+                if (sortedOrders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Chưa có giao dịch nào</td></tr>';
                 } else {
-                    recentOrders.forEach(order => {
+                    sortedOrders.forEach(order => {
                         const row = document.createElement('tr');
+                        const orderId = String(order.id || order._id || '').substring(0, 8);
+                        const statusValue = order.status || 'pending';
+                        const productNames = (order.items || [])
+                            .map(item => item.ten_san_pham || item.product_name || item.name || item?.san_pham?.ten_san_pham || item?.product?.name)
+                            .filter(Boolean)
+                            .slice(0, 2) // Show max 2 product names
+                            .join(', ');
+                        const productCount = order.items?.length || 0;
+                        
+                        // Get status display name
+                        const statusNames = {
+                            'pending': 'Chờ xử lý',
+                            'confirmed': 'Đã xác nhận',
+                            'shipping': 'Đang vận chuyển',
+                            'delivered': 'Hoàn thành',
+                            'cancelled': 'Đã hủy'
+                        };
+                        const statusDisplay = statusNames[statusValue] || statusValue;
+                        
                         row.innerHTML = `
-                            <td>#${String(order.id).substring(0, 8)}</td>
+                            <td>#${orderId}</td>
                             <td>${order.customer || 'N/A'}</td>
-                            <td>${order.items?.length || 0} sản phẩm</td>
+                            <td>${productNames || 'N/A'}${productCount > 2 ? ` và ${productCount - 2} sản phẩm khác` : ''}</td>
+                            <td>${productCount}</td>
                             <td>${formatCurrency(order.total || 0)}</td>
                             <td>${formatDate(order.date)}</td>
-                            <td><span class="badge ${order.status}">${order.status || 'pending'}</span></td>
+                            <td><span class="badge ${statusValue}">${statusDisplay}</span></td>
                         `;
                         tbody.appendChild(row);
                     });
@@ -123,8 +171,8 @@
                 document.getElementById('totalOrders').textContent = 'Lỗi';
                 document.getElementById('totalRevenue').textContent = 'Lỗi';
                 
-                const tbody = document.querySelector('#recentOrders tbody');
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #dc3545;">Không thể tải dữ liệu. Vui lòng kiểm tra kết nối API.</td></tr>';
+                const tbody = document.querySelector('#transactionHistory tbody');
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #dc3545;">Không thể tải dữ liệu. Vui lòng kiểm tra kết nối API.</td></tr>';
             }
         });
     </script>

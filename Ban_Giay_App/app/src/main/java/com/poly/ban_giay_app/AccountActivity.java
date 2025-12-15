@@ -66,11 +66,78 @@ public class AccountActivity extends AppCompatActivity {
             });
         }
         
+        // Lịch sử giao dịch
+        View layoutTransactionHistory = findViewById(R.id.layoutTransactionHistory);
+        if (layoutTransactionHistory != null) {
+            layoutTransactionHistory.setOnClickListener(v -> {
+                Intent intent = new Intent(AccountActivity.this, TransactionHistoryActivity.class);
+                startActivity(intent);
+            });
+        }
+        
+        // Cài đặt
+        View layoutSettings = findViewById(R.id.layoutSettings);
+        if (layoutSettings != null) {
+            layoutSettings.setOnClickListener(v -> {
+                Intent intent = new Intent(AccountActivity.this, SettingsActivity.class);
+                startActivity(intent);
+            });
+        }
+        
         layoutLogout.setOnClickListener(v -> {
             sessionManager.logout();
             Toast.makeText(this, R.string.logout_success, Toast.LENGTH_SHORT).show();
             redirectToLogin();
         });
+        
+        // Bottom navigation
+        setupBottomNavigation();
+    }
+    
+    private void setupBottomNavigation() {
+        // Trang chủ
+        View navHome = findViewById(R.id.navHome);
+        if (navHome != null) {
+            navHome.setOnClickListener(v -> {
+                Intent intent = new Intent(AccountActivity.this, MainActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                startActivity(intent);
+                finish();
+            });
+        }
+
+        // Danh mục
+        View navCategories = findViewById(R.id.navCategories);
+        if (navCategories != null) {
+            navCategories.setOnClickListener(v -> {
+                Intent intent = new Intent(AccountActivity.this, CategoriesActivity.class);
+                startActivity(intent);
+            });
+        }
+
+        // Giỏ hàng
+        View navCart = findViewById(R.id.navCart);
+        if (navCart != null) {
+            navCart.setOnClickListener(v -> {
+                Intent intent = new Intent(AccountActivity.this, CartActivity.class);
+                startActivity(intent);
+            });
+        }
+
+        // Trợ giúp
+        View navHelp = findViewById(R.id.navHelp);
+        if (navHelp != null) {
+            navHelp.setOnClickListener(v -> {
+                Intent intent = new Intent(AccountActivity.this, HelpActivity.class);
+                startActivity(intent);
+            });
+        }
+
+        // Tài khoản - already on this screen, highlight it
+        View navAccount = findViewById(R.id.navAccount);
+        if (navAccount != null) {
+            // Already highlighted in XML
+        }
     }
 
     private void populateUserInfo() {

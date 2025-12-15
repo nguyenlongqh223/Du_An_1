@@ -321,7 +321,6 @@
             <a href="manage-orders.html" class="nav-item">Quản lý Đơn hàng</a>
             <a href="manage-products.html" class="nav-item active">Quản lý Sản phẩm</a>
             <a href="manage-categories.html" class="nav-item">Quản lý Danh mục</a>
-            <a href="manage-carts.html" class="nav-item">Quản lý Giỏ hàng</a>
         </nav>
 
         <div class="content-box">
@@ -681,18 +680,22 @@
 
         // Delete product
         async function deleteProduct(productId) {
-            if (!confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
+            if (!confirm('Bạn có chắc chắn muốn ẩn sản phẩm này?\n\nDữ liệu vẫn được giữ trong database, chỉ ẩn khỏi danh sách.')) {
                 return;
             }
             
             try {
-                await apiCall(`/product/${productId}`, {
+                const response = await apiCall(`/product/${productId}`, {
                     method: 'DELETE'
                 });
-                alert('Xóa sản phẩm thành công!');
-                loadProducts();
+                if (response && response.success !== false) {
+                    alert('Đã ẩn sản phẩm thành công (dữ liệu vẫn được giữ trong database)!');
+                    loadProducts();
+                } else {
+                    throw new Error(response?.message || 'Không thể ẩn sản phẩm');
+                }
             } catch (error) {
-                alert('Lỗi: ' + (error.message || 'Không thể xóa sản phẩm'));
+                alert('Lỗi: ' + (error.message || 'Không thể ẩn sản phẩm'));
             }
         }
 

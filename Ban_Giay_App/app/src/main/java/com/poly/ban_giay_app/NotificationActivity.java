@@ -3,6 +3,7 @@ package com.poly.ban_giay_app;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -35,6 +36,7 @@ public class NotificationActivity extends AppCompatActivity {
     private NotificationAdapter adapter;
     private ApiService apiService;
     private SessionManager sessionManager;
+    private ImageView btnBack;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -45,9 +47,12 @@ public class NotificationActivity extends AppCompatActivity {
         ApiClient.init(this);
         apiService = ApiClient.getApiService();
 
+        btnBack = findViewById(R.id.btnBack);
         swipeRefreshLayout = findViewById(R.id.swipeRefresh);
         rvNotifications = findViewById(R.id.rvNotifications);
         tvEmpty = findViewById(R.id.tvEmpty);
+
+        btnBack.setOnClickListener(v -> finish());
 
         adapter = new NotificationAdapter();
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
@@ -128,6 +133,9 @@ public class NotificationActivity extends AppCompatActivity {
                             Log.d(TAG, "  - Message: " + notif.getMessage());
                             Log.d(TAG, "  - isRead: " + notif.isRead());
                             Log.d(TAG, "  - createdAt: " + notif.getCreatedAt());
+                            Log.d(TAG, "  - Product Name: " + notif.getTenSanPham());
+                            Log.d(TAG, "  - Cancellation Reason: " + notif.getLyDoHuy());
+                            Log.d(TAG, "  - Metadata: " + notif.getMetadata());
                         }
                     }
                     

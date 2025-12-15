@@ -571,7 +571,7 @@ public class MainActivity extends AppCompatActivity {
                         } else {
                             // Nếu không có danh mục active, dùng danh mục mặc định
                             Log.w("MainActivity", "No active categories found, using default 'nam'");
-                            loadProductsByCategory("nam", "Giày nam");
+                            loadProductsByCategory("nam", "Giày hot trend");
                         }
                     } else {
                         // Nếu không có danh mục, dùng danh mục mặc định
@@ -1034,12 +1034,19 @@ public class MainActivity extends AppCompatActivity {
                 priceNew, 
                 finalImageUrl
             );
-            // Lưu ID sản phẩm từ MongoDB
-            product.id = productResponse.getId();
+            // Lưu ID sản phẩm từ MongoDB - đảm bảo không null
+            String productId = productResponse.getId();
+            product.id = (productId != null && !productId.isEmpty()) ? productId : "";
             // Đảm bảo imageUrl được set với giá trị cuối cùng
             product.imageUrl = finalImageUrl;
             // Đảm bảo imageRes = 0 khi dùng imageUrl
             product.imageRes = 0;
+            // Set các thông tin khác
+            product.brand = productResponse.getBrand() != null ? productResponse.getBrand() : "";
+            product.category = productResponse.getCategory() != null ? productResponse.getCategory() : "";
+            product.description = productResponse.getDescription() != null ? productResponse.getDescription() : "";
+            Double rating = productResponse.getDanhGia();
+            product.rating = (rating != null) ? rating : 0.0;
             Log.d("MainActivity", "✅ Created product: " + name + 
                     " | imageUrl: " + product.imageUrl + 
                     " | ID: " + product.id);
@@ -1052,11 +1059,18 @@ public class MainActivity extends AppCompatActivity {
                 priceNew, 
                 R.drawable.giaymau
             );
-            // Lưu ID sản phẩm từ MongoDB
-            product.id = productResponse.getId();
+            // Lưu ID sản phẩm từ MongoDB - đảm bảo không null
+            String productId = productResponse.getId();
+            product.id = (productId != null && !productId.isEmpty()) ? productId : "";
             // Đảm bảo imageUrl = null và imageRes được set
             product.imageUrl = null;
             product.imageRes = R.drawable.giaymau;
+            // Set các thông tin khác
+            product.brand = productResponse.getBrand() != null ? productResponse.getBrand() : "";
+            product.category = productResponse.getCategory() != null ? productResponse.getCategory() : "";
+            product.description = productResponse.getDescription() != null ? productResponse.getDescription() : "";
+            Double rating = productResponse.getDanhGia();
+            product.rating = (rating != null) ? rating : 0.0;
             Log.d("MainActivity", "✅ Created product with default image: " + name + 
                     " | imageRes: " + product.imageRes + 
                     " | ID: " + product.id);

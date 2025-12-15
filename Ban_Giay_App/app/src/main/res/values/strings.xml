@@ -3,6 +3,7 @@
     <string name="logout">Đăng xuất</string>
     <string name="account">Tài khoản</string>
     <string name="back">Quay lại</string>
+    <string name="close">Đóng</string>
     <string name="default_user_name">Người dùng</string>
     <!-- Hiển thị khi đăng xuất thành công -->
     <string name="logout_success">Đăng xuất thành công</string>
@@ -24,4 +25,36 @@
     <string name="error_otp_required">Vui lòng nhập mã OTP</string>
     <string name="error_otp_not_requested">Vui lòng gửi mã OTP trước khi xác nhận</string>
     <string name="price_label">Giá: %1$s</string>
+
+    <!-- Order Detail -->
+    <string name="order_details_title">Chi tiết đơn hàng</string>
+    <string name="order_not_found">Không tìm thấy thông tin đơn hàng</string>
+    <string name="no_network_connection">Không có kết nối mạng</string>
+    <string name="loading_order_details">Đang tải chi tiết đơn hàng...</string>
+    <string name="failed_to_load_order">Không thể tải thông tin đơn hàng</string>
+    <string name="error_loading_order_details">Lỗi khi tải chi tiết đơn hàng</string>
+    <string name="order_hash">Đơn hàng #%1$s</string>
+    <string name="order_date">Ngày đặt: %1$s</string>
+    <string name="customer_name">Tên khách hàng: %1$s</string>
+    <string name="address">Địa chỉ: %1$s</string>
+    <string name="phone_number">Số điện thoại: %1$s</string>
+    <string name="note">Ghi chú: %1$s</string>
+    <string name="not_updated">Chưa cập nhật</string>
+    <string name="cancel_order_reason_dialog_title">Lý do hủy đơn hàng</string>
+    <string name="please_select_reason_to_cancel">Vui lòng chọn lý do hủy đơn hàng</string>
+    <string name="cancel_order_success">Đã hủy đơn hàng thành công</string>
+    <string name="cancel_order_failed">Không thể hủy đơn hàng</string>
+    <string name="error_message">Lỗi: %1$s</string>
+    <string name="size_label">Size: %1$s</string>
+    <string name="quantity_label">Số lượng: %1$s</string>
+    <string name="confirm_cancel">Xác nhận hủy</string>
+
+    <!-- Cancel Order Reasons -->
+    <string name="reason_change_of_mind">Thay đổi ý định</string>
+    <string name="reason_better_option">Tìm thấy lựa chọn tốt hơn</string>
+    <string name="reason_mistake">Đặt nhầm sản phẩm</string>
+    <string name="reason_other">Lý do khác</string>
+
+    <!-- Categories Activity -->
+    <string name="error_initializing_product_lists">Lỗi khởi tạo danh sách sản phẩm</string>
 </resources>

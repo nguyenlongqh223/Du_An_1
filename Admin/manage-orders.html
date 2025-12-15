@@ -37,9 +37,31 @@
             border-color: #007bff;
         }
         
-        .status-select.delivered {
+        .payment-select {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            background: white;
+            min-width: 140px;
+        }
+        
+        .payment-select.paid {
             background: #d4edda;
             border-color: #28a745;
+            color: #155724;
+        }
+        
+        .payment-select.unpaid {
+            background: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+        
+        .payment-select:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
         }
         
         .status-select.cancelled {
@@ -282,6 +304,67 @@
             color: #fff;
         }
 
+        /* Modal xác nhận và lý do hủy */
+        .confirm-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            overflow: auto;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .confirm-modal-content {
+            background-color: white;
+            margin: auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .confirm-modal-header {
+            margin-bottom: 20px;
+        }
+
+        .confirm-modal-header h3 {
+            color: #667eea;
+            margin: 0;
+        }
+
+        .confirm-modal-body {
+            margin-bottom: 20px;
+        }
+
+        .confirm-modal-body textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 100px;
+            margin-top: 10px;
+        }
+
+        .confirm-modal-body textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .confirm-modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
         @media (max-width: 640px) {
             .orders-filters {
                 flex-direction: column;
@@ -315,7 +398,6 @@
             <a href="manage-orders.html" class="nav-item active">Quản lý Đơn hàng</a>
             <a href="manage-products.html" class="nav-item">Quản lý Sản phẩm</a>
             <a href="manage-categories.html" class="nav-item">Quản lý Danh mục</a>
-            <a href="manage-carts.html" class="nav-item">Quản lý Giỏ hàng</a>
         </nav>
 
         <div class="content-box">
@@ -341,9 +423,8 @@
                 <table id="ordersTable">
                     <thead>
                         <tr>
-                            <th>ID</th>
                             <th>Khách hàng</th>
-                            <th>Tên sản phẩm</th>
+                            <th style="min-width: 250px;">Tên sản phẩm</th>
                             <th>Số sản phẩm</th>
                             <th>Tổng tiền</th>
                             <th>Ngày đặt</th>
@@ -369,6 +450,26 @@
             </div>
             <div class="modal-footer" style="padding: 0 24px 16px 24px;">
                 <button type="button" class="btn-cancel" onclick="closeOrderDetail()">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal xác nhận đổi trạng thái -->
+    <div id="confirmStatusModal" class="confirm-modal">
+        <div class="confirm-modal-content">
+            <div class="confirm-modal-header">
+                <h3 id="confirmStatusTitle">Xác nhận đổi trạng thái</h3>
+            </div>
+            <div class="confirm-modal-body">
+                <p id="confirmStatusMessage"></p>
+                <div id="cancelReasonContainer" style="display: none;">
+                    <label for="cancelReason">Lý do hủy đơn hàng *</label>
+                    <textarea id="cancelReason" placeholder="Nhập lý do hủy đơn hàng..." required></textarea>
+                </div>
+            </div>
+            <div class="confirm-modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeConfirmStatusModal()">Hủy</button>
+                <button type="button" class="btn-save" onclick="confirmStatusChange()">Xác nhận</button>
             </div>
         </div>
     </div>
@@ -441,15 +542,32 @@
                 
                 console.log('Parsed orders:', orders);
                 
-                // Transform orders
-                const transformedOrders = orders.map(order => {
+                // Transform orders and fetch customer names - filter out deleted orders
+                const transformedOrders = (await Promise.all(orders.map(async (order) => {
+                    // Skip deleted orders
+                    if (order.is_deleted === true) {
+                        return null;
+                    }
                     // Handle user_id - can be ObjectId string or populated object
                     let customerName = 'N/A';
+                    let customerPhone = '';
+                    
                     if (order.user_id) {
                         if (typeof order.user_id === 'object' && order.user_id !== null) {
-                            customerName = order.user_id.ho_ten || order.user_id.email || order.user_id.toString();
+                            // Already populated
+                            customerName = order.user_id.ho_ten || order.user_id.ten_dang_nhap || order.user_id.email || 'N/A';
+                            customerPhone = order.user_id.so_dien_thoai || '';
                         } else {
-                            customerName = order.user_id.toString();
+                            // Just an ID, need to fetch user info
+                            try {
+                                const userRes = await apiCall(`/user/${order.user_id}`);
+                                const user = userRes.user || userRes.data || userRes;
+                                customerName = user.ho_ten || user.ten_dang_nhap || user.email || 'N/A';
+                                customerPhone = user.so_dien_thoai || '';
+                            } catch (err) {
+                                console.warn(`Could not fetch user ${order.user_id}:`, err);
+                                customerName = order.user_id.toString();
+                            }
                         }
                     }
                     
@@ -457,15 +575,18 @@
                         id: order._id || order.id,
                         _id: order._id || order.id,
                         customer: customerName,
+                        customerPhone: customerPhone,
                         customerId: typeof order.user_id === 'object' ? (order.user_id?._id || order.user_id) : order.user_id,
                         items: order.items || [],
                         total: order.tong_tien || 0,
                         date: order.createdAt || order.updatedAt || new Date(),
                         status: order.trang_thai || 'pending',
                         address: order.dia_chi_giao_hang || '',
-                        phone: order.so_dien_thoai || ''
+                        phone: order.so_dien_thoai || customerPhone || '',
+                        da_thanh_toan: order.da_thanh_toan || order.is_paid || false,
+                        is_paid: order.da_thanh_toan || order.is_paid || false
                     };
-                });
+                }))).filter(order => order !== null);
                 
                 console.log('Transformed orders:', transformedOrders);
                 
@@ -485,13 +606,69 @@
             }
         }
         
+        // Get next allowed statuses based on current status (chỉ cho phép chuyển tuần tự)
+        function getAllowedStatuses(currentStatus) {
+            const statusFlow = {
+                'pending': ['confirmed', 'cancelled'], // 1 → 2 hoặc 5
+                'confirmed': ['paid', 'cancelled'], // 2 → 3 hoặc 5
+                'paid': ['delivered', 'cancelled'], // 3 → 4 hoặc 5
+                'delivered': [], // 4 → không thể đổi
+                'cancelled': [] // 5 → không thể đổi
+            };
+            const allowed = statusFlow[currentStatus] || [];
+            return allowed;
+        }
+        
+        // Get status order number
+        function getStatusOrder(status) {
+            const orderMap = {
+                'pending': 1,
+                'confirmed': 2,
+                'paid': 3,
+                'delivered': 4,
+                'cancelled': 5
+            };
+            return orderMap[status] || 0;
+        }
+        
+        // Check if status change is valid (only forward, sequential)
+        function isValidStatusChange(currentStatus, newStatus) {
+            const currentOrder = getStatusOrder(currentStatus);
+            const newOrder = getStatusOrder(newStatus);
+            
+            // Cannot go backwards
+            if (newOrder < currentOrder) {
+                return false;
+            }
+            
+            // Can only go to next step or cancel
+            if (newStatus === 'cancelled') {
+                return true; // Can cancel from any status
+            }
+            
+            // Must be sequential: 1→2, 2→3, 3→4
+            return newOrder === currentOrder + 1;
+        }
+
+        // Get status display name
+        function getStatusDisplayName(status) {
+            const names = {
+                'pending': 'Chờ xử lý',
+                'confirmed': 'Đã xác nhận',
+                'paid': 'Đã thanh toán',
+                'delivered': 'Hoàn thành',
+                'cancelled': 'Hủy đơn'
+            };
+            return names[status] || status;
+        }
+
         // Display orders
         function displayOrders(orders) {
             const tbody = document.querySelector('#ordersTable tbody');
             tbody.innerHTML = '';
             
             if (orders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Chưa có đơn hàng nào trong database</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Chưa có đơn hàng nào trong database</td></tr>';
                 return;
             }
             
@@ -504,24 +681,32 @@
                     .filter(Boolean)
                     .join(', ');
                 
+                // Get allowed next statuses (only sequential)
+                const allowedStatuses = getAllowedStatuses(statusValue);
+                const isDisabled = statusValue === 'cancelled' || statusValue === 'delivered';
+                
+                // Build options HTML - show all statuses but only enable allowed ones
+                const allStatuses = ['pending', 'confirmed', 'paid', 'delivered', 'cancelled'];
+                let optionsHtml = '';
+                allStatuses.forEach(status => {
+                    const isSelected = status === statusValue;
+                    const isAllowed = isSelected || allowedStatuses.includes(status);
+                    optionsHtml += `<option value="${status}" ${isSelected ? 'selected' : ''} ${!isAllowed ? 'disabled' : ''}>${getStatusDisplayName(status)}</option>`;
+                });
+                
                 row.innerHTML = `
-                    <td>#${orderId}</td>
                     <td>${order.customer || 'N/A'}</td>
-                    <td>${productNames || 'N/A'}</td>
+                    <td style="max-width: 300px; word-wrap: break-word;">${productNames || 'N/A'}</td>
                     <td>${order.items?.length || 0}</td>
                     <td>${formatCurrency(order.total || 0)}</td>
                     <td>${formatDate(order.date)}</td>
                     <td>
                         <select class="status-select ${statusValue}" 
-                                onchange="updateOrderStatus('${order.id || order._id}', this.value)"
+                                onchange="handleStatusChange('${order.id || order._id}', this.value, '${statusValue}')"
                                 data-order-id="${order.id || order._id}"
-                                ${statusValue === 'cancelled' ? 'disabled' : ''}
-                                title="${statusValue === 'cancelled' ? 'Đơn hàng đã hủy, không thể thay đổi trạng thái' : ''}">
-                            <option value="pending" ${statusValue === 'pending' ? 'selected' : ''}>Chờ xử lý</option>
-                            <option value="confirmed" ${statusValue === 'confirmed' ? 'selected' : ''}>Đã xác nhận</option>
-                            <option value="shipping" ${statusValue === 'shipping' ? 'selected' : ''}>Đang vận chuyển</option>
-                            <option value="delivered" ${statusValue === 'delivered' ? 'selected' : ''}>Hoàn thành</option>
-                            <option value="cancelled" ${statusValue === 'cancelled' ? 'selected' : ''}>Hủy đơn hàng</option>
+                                ${isDisabled ? 'disabled' : ''}
+                                title="${isDisabled ? (statusValue === 'delivered' ? 'Đơn hàng đã hoàn thành, không thể thay đổi trạng thái' : statusValue === 'cancelled' ? 'Đơn hàng đã hủy, không thể thay đổi trạng thái' : '') : 'Chỉ có thể chuyển trạng thái tuần tự: Chờ xử lý → Đã xác nhận → Đã thanh toán → Hoàn thành'}">
+                            ${optionsHtml}
                         </select>
                     </td>
                     <td style="min-width: 160px; display:flex; gap:8px; align-items:center; flex-wrap:nowrap;">
@@ -574,28 +759,112 @@
             displayOrders(allOrders);
         }
 
-        // Update order status
-        async function updateOrderStatus(orderId, newStatus) {
+        let pendingStatusChange = null; // Store pending status change
+
+        // Handle status change with confirmation
+        function handleStatusChange(orderId, newStatus, currentStatus) {
+            // Validate status change (only sequential forward)
+            if (!isValidStatusChange(currentStatus, newStatus)) {
+                // Check if trying to go backwards
+                const currentOrder = getStatusOrder(currentStatus);
+                const newOrder = getStatusOrder(newStatus);
+                if (newOrder < currentOrder && newStatus !== 'cancelled') {
+                    alert('Không thể chuyển ngược trạng thái! Chỉ có thể chuyển tuần tự: Chờ xử lý → Đã xác nhận → Đã thanh toán → Hoàn thành');
+                } else {
+                    alert('Không thể chuyển trạng thái này! Chỉ có thể chuyển tuần tự: Chờ xử lý → Đã xác nhận → Đã thanh toán → Hoàn thành');
+                }
+                // Revert select to current status
+                const select = document.querySelector(`select[data-order-id="${orderId}"]`);
+                if (select) {
+                    select.value = currentStatus;
+                }
+                return;
+            }
+
+            // Revert select to current status first
+            const select = document.querySelector(`select[data-order-id="${orderId}"]`);
+            if (select) {
+                select.value = currentStatus;
+            }
+
+            // Store pending change
+            pendingStatusChange = {
+                orderId: orderId,
+                newStatus: newStatus,
+                currentStatus: currentStatus
+            };
+
+            // Show confirmation modal
+            const modal = document.getElementById('confirmStatusModal');
+            const title = document.getElementById('confirmStatusTitle');
+            const message = document.getElementById('confirmStatusMessage');
+            const cancelReasonContainer = document.getElementById('cancelReasonContainer');
+            const cancelReason = document.getElementById('cancelReason');
+
+            if (newStatus === 'cancelled') {
+                title.textContent = 'Xác nhận hủy đơn hàng';
+                message.textContent = 'Bạn có chắc chắn muốn hủy đơn hàng này? Vui lòng nhập lý do hủy.';
+                cancelReasonContainer.style.display = 'block';
+                cancelReason.value = '';
+                cancelReason.required = true;
+            } else {
+                title.textContent = 'Xác nhận đổi trạng thái';
+                message.textContent = `Bạn có chắc chắn muốn đổi trạng thái từ "${getStatusDisplayName(currentStatus)}" sang "${getStatusDisplayName(newStatus)}"?`;
+                cancelReasonContainer.style.display = 'none';
+                cancelReason.required = false;
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        // Close confirm modal
+        function closeConfirmStatusModal() {
+            document.getElementById('confirmStatusModal').style.display = 'none';
+            pendingStatusChange = null;
+        }
+
+        // Confirm status change
+        async function confirmStatusChange() {
+            if (!pendingStatusChange) return;
+
+            const { orderId, newStatus, currentStatus } = pendingStatusChange;
+            const cancelReason = document.getElementById('cancelReason').value;
+
+            // Validate cancel reason
+            if (newStatus === 'cancelled' && !cancelReason.trim()) {
+                alert('Vui lòng nhập lý do hủy đơn hàng!');
+                return;
+            }
+
             try {
                 console.log(`Updating order ${orderId} to status: ${newStatus}`);
                 
+                const updateData = { trang_thai: newStatus };
+                if (newStatus === 'cancelled' && cancelReason) {
+                    updateData.ly_do_huy = cancelReason;
+                }
+
                 const response = await apiCall(`/order/${orderId}/status`, {
                     method: 'PUT',
-                    body: JSON.stringify({ trang_thai: newStatus })
+                    body: JSON.stringify(updateData)
                 });
                 
-                if (response.success) {
+                if (response.success !== false) {
+                    // Send notification to app
+                    try {
+                        await sendNotificationToApp(orderId, newStatus, cancelReason);
+                    } catch (notifError) {
+                        console.warn('Could not send notification to app:', notifError);
+                    }
+
                     // Update local data
                     const order = allOrders.find(o => (o.id || o._id) === orderId);
                     if (order) {
                         order.status = newStatus;
                     }
                     
-                    // Update UI
-                    const select = document.querySelector(`select[data-order-id="${orderId}"]`);
-                    if (select) {
-                        select.className = `status-select ${newStatus}`;
-                    }
+                    // Reload to update UI
+                    await loadOrdersData();
                     
                     alert('Cập nhật trạng thái đơn hàng thành công!');
                     console.log('✅ Status updated successfully');
@@ -605,10 +874,146 @@
             } catch (error) {
                 console.error('Error updating status:', error);
                 alert('Lỗi: ' + (error.message || 'Không thể cập nhật trạng thái đơn hàng'));
-                
-                // Reload to revert changes
-                loadOrdersData();
+            } finally {
+                closeConfirmStatusModal();
             }
+        }
+
+        // Send notification to app
+        async function sendNotificationToApp(orderId, newStatus, cancelReason) {
+            try {
+                // Try to get order details to get user_id and product names
+                const order = allOrders.find(o => (o.id || o._id) === orderId);
+                if (!order || !order.customerId) {
+                    console.warn('Cannot send notification: order or customerId not found');
+                    return;
+                }
+
+                // Get product names from order items - fetch from API if needed
+                let productNames = '';
+                if (order.items && order.items.length > 0) {
+                    // Try to get product names from items
+                    const names = order.items
+                        .map(item => {
+                            if (item.ten_san_pham) return item.ten_san_pham;
+                            if (item.product_name) return item.product_name;
+                            if (item.name) return item.name;
+                            if (item?.san_pham?.ten_san_pham) return item.san_pham.ten_san_pham;
+                            if (item?.product?.name) return item.product.name;
+                            return null;
+                        })
+                        .filter(Boolean);
+                    
+                    if (names.length > 0) {
+                        productNames = names.join(', ');
+                    } else {
+                        // If no names in items, try to fetch from API
+                        try {
+                            const orderDetail = await apiCall(`/order/${orderId}`);
+                            const orderData = orderDetail.data || orderDetail;
+                            if (orderData.items) {
+                                const fetchedNames = orderData.items
+                                    .map(item => {
+                                        if (item.ten_san_pham) return item.ten_san_pham;
+                                        if (item.san_pham_id && typeof item.san_pham_id === 'object' && item.san_pham_id.ten_san_pham) {
+                                            return item.san_pham_id.ten_san_pham;
+                                        }
+                                        return null;
+                                    })
+                                    .filter(Boolean);
+                                if (fetchedNames.length > 0) {
+                                    productNames = fetchedNames.join(', ');
+                                }
+                            }
+                        } catch (fetchError) {
+                            console.warn('Could not fetch product names:', fetchError);
+                        }
+                    }
+                }
+
+                // Format message: "Đơn hàng [tên sản phẩm] đã [trạng thái]"
+                const message = getStatusUpdateMessage(newStatus, cancelReason, productNames);
+
+                const notificationData = {
+                    user_id: order.customerId,
+                    order_id: orderId,
+                    type: 'order_status_update',
+                    status: newStatus,
+                    message: message,
+                    cancel_reason: cancelReason || null,
+                    product_names: productNames || null
+                };
+
+                console.log('Sending notification:', notificationData);
+
+                // Try different notification endpoints
+                try {
+                    await apiCall('/notification', {
+                        method: 'POST',
+                        body: JSON.stringify(notificationData)
+                    });
+                } catch (e1) {
+                    try {
+                        await apiCall('/notifications', {
+                            method: 'POST',
+                            body: JSON.stringify(notificationData)
+                        });
+                    } catch (e2) {
+                        // If both fail, try order notification endpoint
+                        await apiCall(`/order/${orderId}/notify`, {
+                            method: 'POST',
+                            body: JSON.stringify(notificationData)
+                        });
+                    }
+                }
+            } catch (error) {
+                console.warn('Notification error:', error);
+                // Don't throw, just log
+            }
+        }
+
+        // Get status update message with product names and cancel reason
+        // Format: "đơn hàng + tên sản phẩm + đã + trạng thái (nếu hủy thì + lý do)"
+        function getStatusUpdateMessage(status, cancelReason, productNames) {
+            // Format product names - ensure it's always included
+            let productInfo = '';
+            if (productNames && productNames.trim()) {
+                const products = productNames.split(', ').filter(p => p && p.trim());
+                if (products.length === 1) {
+                    productInfo = products[0];
+                } else if (products.length <= 3) {
+                    productInfo = products.join(', ');
+                } else {
+                    productInfo = `${products.slice(0, 2).join(', ')} và ${products.length - 2} sản phẩm khác`;
+                }
+            } else {
+                productInfo = 'đơn hàng';
+            }
+            
+            const statusMessages = {
+                'pending': 'chờ xử lý',
+                'confirmed': 'xác nhận',
+                'paid': 'đã thanh toán',
+                'delivered': 'hoàn thành',
+                'cancelled': 'hủy đơn'
+            };
+            
+            const statusText = statusMessages[status] || status;
+            // Format: "Đơn hàng [tên sản phẩm] đã [trạng thái]"
+            let message = `Đơn hàng ${productInfo} đã ${statusText}`;
+            
+            // If cancelled, add reason
+            if (status === 'cancelled' && cancelReason && cancelReason.trim()) {
+                message += `. Lý do hủy đơn: ${cancelReason}`;
+            }
+            
+            return message;
+        }
+
+        // Update order status (old function - kept for compatibility)
+        async function updateOrderStatus(orderId, newStatus) {
+            // This function is now replaced by handleStatusChange
+            handleStatusChange(orderId, newStatus, 'pending');
         }
         
         // Load on page load
@@ -624,21 +1029,74 @@
                 const totalQty = items.reduce((s, it) => s + (it.so_luong || 0), 0);
                 const totalAmount = order.tong_tien || order.total || 0;
 
-                const itemsHtml = items.map((item, idx) => {
+                // Fetch product images for items
+                const itemsHtml = await Promise.all(items.map(async (item, idx) => {
                     const lineTotal = (item.gia || 0) * (item.so_luong || 0);
+                    let productImage = '';
+                    
+                    // Try to get product image
+                    if (item.san_pham_id) {
+                        try {
+                            const productId = typeof item.san_pham_id === 'object' ? (item.san_pham_id._id || item.san_pham_id) : item.san_pham_id;
+                            const productRes = await apiCall(`/product/${productId}`);
+                            const product = productRes.product || productRes.data || productRes;
+                            if (product.hinh_anh) {
+                                const imageUrl = product.hinh_anh.startsWith('http') ? product.hinh_anh : `${API_CONFIG.BASE_URL.replace('/api', '')}/uploads/${product.hinh_anh}`;
+                                productImage = `<img src="${imageUrl}" alt="${item.ten_san_pham || 'Product'}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; margin-right: 12px;">`;
+                            }
+                        } catch (err) {
+                            console.warn(`Could not fetch product image for ${item.san_pham_id}:`, err);
+                        }
+                    }
+                    
                     return `
-                        <div class="item-card">
-                            <div class="item-title">${idx + 1}. ${item.ten_san_pham || 'N/A'}</div>
-                            <div class="item-meta">
-                                <span><strong>Size:</strong> ${item.kich_thuoc || '-'}</span>
-                                <span><strong>Số lượng:</strong> ${item.so_luong || 0}</span>
-                                <span><strong>Giá:</strong> ${formatCurrency(item.gia || 0)}</span>
-                                <span><strong>Thành tiền:</strong> ${formatCurrency(lineTotal)}</span>
+                        <div class="item-card" style="display: flex; align-items: flex-start;">
+                            ${productImage}
+                            <div style="flex: 1;">
+                                <div class="item-title">${idx + 1}. ${item.ten_san_pham || 'N/A'}</div>
+                                <div class="item-meta">
+                                    <span><strong>Size:</strong> ${item.kich_thuoc || '-'}</span>
+                                    <span><strong>Số lượng:</strong> ${item.so_luong || 0}</span>
+                                    <span><strong>Giá:</strong> ${formatCurrency(item.gia || 0)}</span>
+                                    <span><strong>Thành tiền:</strong> ${formatCurrency(lineTotal)}</span>
+                                </div>
                             </div>
                         </div>
                     `;
-                }).join('');
+                }));
 
+                // Get customer info
+                let customerName = 'N/A';
+                let customerPhone = '';
+                if (order.user) {
+                    customerName = order.user.ho_ten || order.user.ten_dang_nhap || order.user.email || 'N/A';
+                    customerPhone = order.user.so_dien_thoai || '';
+                } else if (order.user_id) {
+                    try {
+                        const userId = typeof order.user_id === 'object' ? (order.user_id._id || order.user_id) : order.user_id;
+                        const userRes = await apiCall(`/user/${userId}`);
+                        const user = userRes.user || userRes.data || userRes;
+                        customerName = user.ho_ten || user.ten_dang_nhap || user.email || 'N/A';
+                        customerPhone = user.so_dien_thoai || '';
+                    } catch (err) {
+                        console.warn('Could not fetch user:', err);
+                        customerName = order.customer || order.user_name || 'N/A';
+                        customerPhone = order.phone || order.so_dien_thoai || '';
+                    }
+                } else {
+                    customerName = order.customer || order.user_name || 'N/A';
+                    customerPhone = order.phone || order.so_dien_thoai || '';
+                }
+                
+                // Extract phone from ghi_chu if it contains STK pattern
+                let phoneFromNote = customerPhone;
+                if (order.ghi_chu) {
+                    const stkMatch = order.ghi_chu.match(/STK:\s*(\d+)/i);
+                    if (stkMatch && stkMatch[1]) {
+                        phoneFromNote = stkMatch[1];
+                    }
+                }
+                
                 const detailHtml = `
                     <div class="detail-section">
                         <h3>Thông tin đơn hàng</h3>
@@ -652,15 +1110,15 @@
                     <div class="detail-section">
                         <h3>Thông tin khách hàng</h3>
                         <div class="info-grid">
-                            <div class="info-item"><span class="info-label">Khách hàng:</span><span class="info-value">${order.user ? (order.user.ho_ten || order.user.ten_dang_nhap || order.user.email || 'N/A') : (order.customer || order.user_name || order.user_id || 'N/A')}</span></div>
-                            <div class="info-item"><span class="info-label">SĐT:</span><span class="info-value">${order.user ? (order.user.so_dien_thoai || '') : (order.phone || order.so_dien_thoai || '')}</span></div>
+                            <div class="info-item"><span class="info-label">Khách hàng:</span><span class="info-value">${customerName}</span></div>
+                            <div class="info-item"><span class="info-label">SĐT:</span><span class="info-value">${phoneFromNote || customerPhone || ''}</span></div>
                             <div class="info-item" style="grid-column: span 2;"><span class="info-label">Địa chỉ:</span><span class="info-value">${order.dia_chi_giao_hang || order.address || ''}</span></div>
                         </div>
                     </div>
                     <div class="detail-section">
                         <h3>Sản phẩm</h3>
                         <div class="items-list">
-                            ${itemsHtml || '<div style="text-align:center;padding:12px;">Không có sản phẩm</div>'}
+                            ${itemsHtml.join('') || '<div style="text-align:center;padding:12px;">Không có sản phẩm</div>'}
                         </div>
                         <div class="summary-box">
                             <div>
@@ -694,16 +1152,19 @@
 
         // Delete order
         async function deleteOrder(orderId) {
-            if (!confirm('Bạn chắc chắn muốn xóa đơn hàng này?')) return;
+            if (!confirm('Bạn chắc chắn muốn ẩn đơn hàng này?\n\nDữ liệu vẫn được giữ trong database, chỉ ẩn khỏi danh sách.')) return;
             try {
-                const res = await apiCall(`/order/${orderId}`, { method: 'DELETE' });
-                if (res.success === false) throw new Error(res.message || 'Xóa không thành công');
-                alert('Đã xóa đơn hàng');
+                // Soft delete - use DELETE endpoint which now performs soft delete
+                const res = await apiCall(`/order/${orderId}`, { 
+                    method: 'DELETE'
+                });
+                if (res.success === false) throw new Error(res.message || 'Ẩn không thành công');
+                alert('Đã ẩn đơn hàng (dữ liệu vẫn được giữ trong database)');
                 // Refresh list
                 await loadOrdersData();
             } catch (error) {
-                console.error('Error deleting order:', error);
-                alert('Không thể xóa đơn hàng: ' + (error.message || 'Lỗi không xác định'));
+                console.error('Error soft deleting order:', error);
+                alert('Không thể ẩn đơn hàng: ' + (error.message || 'Lỗi không xác định'));
             }
         }
 
@@ -711,6 +1172,9 @@
         window.addEventListener('click', (event) => {
             const modal = document.getElementById('orderDetailModal');
             if (event.target === modal) closeOrderDetail();
+            
+            const confirmModal = document.getElementById('confirmStatusModal');
+            if (event.target === confirmModal) closeConfirmStatusModal();
         });
     </script>
 </body>

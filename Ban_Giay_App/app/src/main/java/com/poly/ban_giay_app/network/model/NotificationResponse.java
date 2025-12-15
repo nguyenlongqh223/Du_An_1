@@ -42,6 +42,22 @@ public class NotificationResponse {
     @SerializedName("metadata")
     private Object metadata;
 
+    // Tên sản phẩm (khi admin thay đổi trạng thái đơn hàng)
+    @SerializedName("ten_san_pham")
+    private String tenSanPham;
+    
+    // Fallback: product_name (nếu có)
+    @SerializedName("product_name")
+    private String productName;
+
+    // Lý do hủy đơn (khi admin hủy đơn)
+    @SerializedName("ly_do_huy")
+    private String lyDoHuy;
+    
+    // Fallback: cancellation_reason (nếu có)
+    @SerializedName("cancellation_reason")
+    private String cancellationReason;
+
     @SerializedName("createdAt")
     private String createdAt;
 
@@ -111,5 +127,27 @@ public class NotificationResponse {
 
     public String getUpdatedAt() {
         return updatedAt;
+    }
+
+    public String getTenSanPham() {
+        // Ưu tiên dùng ten_san_pham, fallback về product_name
+        if (tenSanPham != null && !tenSanPham.trim().isEmpty()) {
+            return tenSanPham;
+        }
+        if (productName != null && !productName.trim().isEmpty()) {
+            return productName;
+        }
+        return null;
+    }
+
+    public String getLyDoHuy() {
+        // Ưu tiên dùng ly_do_huy, fallback về cancellation_reason
+        if (lyDoHuy != null && !lyDoHuy.trim().isEmpty()) {
+            return lyDoHuy;
+        }
+        if (cancellationReason != null && !cancellationReason.trim().isEmpty()) {
+            return cancellationReason;
+        }
+        return null;
     }
 }

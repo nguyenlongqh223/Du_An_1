@@ -23,12 +23,18 @@ const OrderSchema = new mongoose.Schema(
     tong_tien: { type: Number, required: true },
     trang_thai: {
       type: String,
-      enum: ["pending", "confirmed", "shipping", "delivered", "cancelled"],
+      enum: ["pending", "confirmed", "paid", "delivered", "cancelled"],
       default: "pending",
     },
     dia_chi_giao_hang: { type: String },
     so_dien_thoai: { type: String },
     ghi_chu: { type: String },
+    da_thanh_toan: { type: Boolean, default: false },
+    is_paid: { type: Boolean, default: false },
+    ly_do_huy: { type: String },
+    // Soft delete fields
+    is_deleted: { type: Boolean, default: false },
+    deleted_at: { type: Date, default: null },
   },
   { timestamps: true }
 );

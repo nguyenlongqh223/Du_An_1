@@ -29,6 +29,7 @@ import com.poly.ban_giay_app.network.model.ProductResponse;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import retrofit2.Call;
@@ -37,24 +38,22 @@ import retrofit2.Response;
 
 public class CategoriesActivity extends AppCompatActivity {
     private SessionManager sessionManager;
-    private View navAccount;
     private ImageView imgAccountIcon;
     private TextView tvAccountLabel;
 
     // RecyclerViews and Adapters
-    private RecyclerView rvTopSelling, rvHotTrend, rvMen, rvWomen;
     private ProductAdapter topSellingAdapter, hotTrendAdapter, menAdapter, womenAdapter;
-    private List<Product> topSellingList = new ArrayList<>();
-    private List<Product> hotTrendList = new ArrayList<>();
-    private List<Product> menList = new ArrayList<>();
-    private List<Product> womenList = new ArrayList<>();
+    private final List<Product> topSellingList = new ArrayList<>();
+    private final List<Product> hotTrendList = new ArrayList<>();
+    private final List<Product> menList = new ArrayList<>();
+    private final List<Product> womenList = new ArrayList<>();
     private ApiService apiService;
     
     // Dynamic category sections
     private android.widget.LinearLayout layoutCategoriesContainer;
-    private Map<String, RecyclerView> categoryRecyclerViews = new HashMap<>();
-    private Map<String, ProductAdapter> categoryAdapters = new HashMap<>();
-    private Map<String, List<Product>> categoryProductLists = new HashMap<>();
+    private final Map<String, RecyclerView> categoryRecyclerViews = new HashMap<>();
+    private final Map<String, ProductAdapter> categoryAdapters = new HashMap<>();
+    private final Map<String, List<Product>> categoryProductLists = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -102,7 +101,7 @@ public class CategoriesActivity extends AppCompatActivity {
     }
 
     private void initAccountNav() {
-        navAccount = findViewById(R.id.navAccount);
+        View navAccount = findViewById(R.id.navAccount);
         imgAccountIcon = findViewById(R.id.imgAccountIcon);
         tvAccountLabel = findViewById(R.id.tvAccountLabel);
 
@@ -140,7 +139,7 @@ public class CategoriesActivity extends AppCompatActivity {
     private void initProductLists() {
         try {
             // Top selling products
-            rvTopSelling = findViewById(R.id.rvTopSelling);
+            RecyclerView rvTopSelling = findViewById(R.id.rvTopSelling);
             if (rvTopSelling != null) {
                 rvTopSelling.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
                 topSellingAdapter = new ProductAdapter(topSellingList);
@@ -148,7 +147,7 @@ public class CategoriesActivity extends AppCompatActivity {
             }
 
             // Hot trend products
-            rvHotTrend = findViewById(R.id.rvHotTrend);
+            RecyclerView rvHotTrend = findViewById(R.id.rvHotTrend);
             if (rvHotTrend != null) {
                 rvHotTrend.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
                 hotTrendAdapter = new ProductAdapter(hotTrendList);
@@ -156,7 +155,7 @@ public class CategoriesActivity extends AppCompatActivity {
             }
 
             // Men's shoes
-            rvMen = findViewById(R.id.rvMen);
+            RecyclerView rvMen = findViewById(R.id.rvMen);
             if (rvMen != null) {
                 rvMen.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
                 menAdapter = new ProductAdapter(menList);
@@ -164,7 +163,7 @@ public class CategoriesActivity extends AppCompatActivity {
             }
 
             // Women's shoes
-            rvWomen = findViewById(R.id.rvWomen);
+            RecyclerView rvWomen = findViewById(R.id.rvWomen);
             if (rvWomen != null) {
                 rvWomen.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
                 womenAdapter = new ProductAdapter(womenList);
@@ -236,7 +235,7 @@ public class CategoriesActivity extends AppCompatActivity {
                                 boolean isMen = "nam".equalsIgnoreCase(categoryName) || categoryName.toLowerCase().contains("nam");
                                 boolean isWomen = "nu".equalsIgnoreCase(categoryName) || "nữ".equalsIgnoreCase(categoryName) || categoryName.toLowerCase().contains("nu") || categoryName.toLowerCase().contains("nữ");
                                 
-                                if (isMen && rvMen != null) {
+                                if (isMen) {
                                     // Cập nhật title của section "Giày nam"
                                     View layoutMen = findViewById(R.id.layoutMen);
                                     if (layoutMen != null) {
@@ -253,8 +252,8 @@ public class CategoriesActivity extends AppCompatActivity {
                                             tvMenTitle.setText(categoryName);
                                         }
                                     }
-                                    loadProductsByCategory(categoryName, categoryName, rvMen, menList, menAdapter);
-                                } else if (isWomen && rvWomen != null) {
+                                    loadProductsByCategory(categoryName, menList, menAdapter);
+                                } else if (isWomen) {
                                     // Hiển thị section "Giày nữ" và cập nhật title
                                     if (layoutWomen != null) {
                                         layoutWomen.setVisibility(View.VISIBLE);
@@ -270,10 +269,10 @@ public class CategoriesActivity extends AppCompatActivity {
                                             tvWomenTitle.setText(categoryName);
                                         }
                                     }
-                                    loadProductsByCategory(categoryName, categoryName, rvWomen, womenList, womenAdapter);
+                                    loadProductsByCategory(categoryName, womenList, womenAdapter);
                                 } else {
                                     // Các danh mục khác tạo section mới
-                                    createCategorySection(categoryName, categoryName);
+                                    createCategorySection(categoryName);
                                 }
                             }
                         });
@@ -288,8 +287,7 @@ public class CategoriesActivity extends AppCompatActivity {
         });
     }
     
-    private void loadProductsByCategory(String categoryName, String displayTitle, 
-                                       RecyclerView recyclerView, List<Product> productList, ProductAdapter adapter) {
+    private void loadProductsByCategory(String categoryName, List<Product> productList, ProductAdapter adapter) {
         if (!NetworkUtils.isConnected(this)) {
             Log.e("CategoriesActivity", "No network connection - cannot load products by category");
             return;
@@ -302,19 +300,17 @@ public class CategoriesActivity extends AppCompatActivity {
             public void onResponse(Call<List<ProductResponse>> call, Response<List<ProductResponse>> response) {
                 try {
                     if (response.isSuccessful() && response.body() != null) {
+                        int oldSize = productList.size();
                         productList.clear();
+                        adapter.notifyItemRangeRemoved(0, oldSize);
                         for (ProductResponse productResponse : response.body()) {
                             Product product = convertToProduct(productResponse);
                             if (product != null && product.name != null && !product.name.isEmpty()) {
                                 productList.add(product);
+                                adapter.notifyItemInserted(productList.size() - 1);
                             }
                         }
-                        runOnUiThread(() -> {
-                            if (adapter != null) {
-                                adapter.notifyDataSetChanged();
-                            }
-                            Log.d("CategoriesActivity", "Products for category '" + categoryName + "' updated: " + productList.size());
-                        });
+                        Log.d("CategoriesActivity", "Products for category '" + categoryName + "' updated: " + productList.size());
                     }
                 } catch (Exception e) {
                     Log.e("CategoriesActivity", "Error loading products for category: " + categoryName, e);
@@ -328,7 +324,7 @@ public class CategoriesActivity extends AppCompatActivity {
         });
     }
     
-    private void createCategorySection(String categoryName, String displayTitle) {
+    private void createCategorySection(String categoryName) {
         if (layoutCategoriesContainer == null) {
             Log.e("CategoriesActivity", "layoutCategoriesContainer is null, cannot create category section");
             return;
@@ -354,7 +350,7 @@ public class CategoriesActivity extends AppCompatActivity {
             android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
             android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
         ));
-        titleTextView.setText(displayTitle);
+        titleTextView.setText(categoryName);
         titleTextView.setTextSize(18);
         titleTextView.setTypeface(null, android.graphics.Typeface.BOLD);
         titleTextView.setTextColor(0xFF000000);
@@ -395,7 +391,7 @@ public class CategoriesActivity extends AppCompatActivity {
         }
         
         // Load sản phẩm cho danh mục này
-        loadProductsByCategory(categoryName, displayTitle, recyclerView, productList, adapter);
+        loadProductsByCategory(categoryName, productList, adapter);
         
         Log.d("CategoriesActivity", "Created category section for: " + categoryName);
     }
@@ -437,7 +433,7 @@ public class CategoriesActivity extends AppCompatActivity {
 
     private void loadProductsFromApi() {
         if (!NetworkUtils.isConnected(this)) {
-            Toast.makeText(this, "Không có kết nối mạng", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.no_network_connection, Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -446,19 +442,17 @@ public class CategoriesActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<List<ProductResponse>> call, Response<List<ProductResponse>> response) {
                 try {
-                    if (response.isSuccessful() && response.body() != null && topSellingList != null && topSellingAdapter != null) {
+                    if (response.isSuccessful() && response.body() != null && topSellingAdapter != null) {
+                        int oldSize = topSellingList.size();
                         topSellingList.clear();
+                        topSellingAdapter.notifyItemRangeRemoved(0, oldSize);
                         for (ProductResponse productResponse : response.body()) {
                             Product product = convertToProduct(productResponse);
                             if (product != null && product.name != null && !product.name.isEmpty()) {
                                 topSellingList.add(product);
+                                topSellingAdapter.notifyItemInserted(topSellingList.size() - 1);
                             }
                         }
-                        runOnUiThread(() -> {
-                            if (topSellingAdapter != null) {
-                                topSellingAdapter.notifyDataSetChanged();
-                            }
-                        });
                     }
                 } catch (Exception e) {
                     Log.e("CategoriesActivity", "Error loading top selling products", e);
@@ -476,19 +470,17 @@ public class CategoriesActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<List<ProductResponse>> call, Response<List<ProductResponse>> response) {
                 try {
-                    if (response.isSuccessful() && response.body() != null && hotTrendList != null && hotTrendAdapter != null) {
+                    if (response.isSuccessful() && response.body() != null && hotTrendAdapter != null) {
+                        int oldSize = hotTrendList.size();
                         hotTrendList.clear();
+                        hotTrendAdapter.notifyItemRangeRemoved(0, oldSize);
                         for (ProductResponse productResponse : response.body()) {
                             Product product = convertToProduct(productResponse);
                             if (product != null && product.name != null && !product.name.isEmpty()) {
                                 hotTrendList.add(product);
+                                hotTrendAdapter.notifyItemInserted(hotTrendList.size() - 1);
                             }
                         }
-                        runOnUiThread(() -> {
-                            if (hotTrendAdapter != null) {
-                                hotTrendAdapter.notifyDataSetChanged();
-                            }
-                        });
                     }
                 } catch (Exception e) {
                     Log.e("CategoriesActivity", "Error loading hot trend products", e);
@@ -560,7 +552,7 @@ public class CategoriesActivity extends AppCompatActivity {
     }
 
     private String formatPrice(int price) {
-        return String.format("%,d₫", price).replace(",", ".");
+        return String.format(Locale.getDefault(), "%,d₫", price).replace(",", ".");
     }
 
     private void setupBottomNavigation() {
@@ -612,4 +604,3 @@ public class CategoriesActivity extends AppCompatActivity {
         }
     }
 }
-

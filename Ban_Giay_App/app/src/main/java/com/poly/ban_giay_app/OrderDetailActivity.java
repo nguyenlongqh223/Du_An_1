@@ -28,6 +28,7 @@ import com.poly.ban_giay_app.network.NetworkUtils;
 import com.poly.ban_giay_app.network.model.BaseResponse;
 import com.poly.ban_giay_app.network.model.OrderResponse;
 import com.poly.ban_giay_app.network.request.CancelOrderRequest;
+import com.poly.ban_giay_app.SessionManager;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -63,7 +64,7 @@ public class OrderDetailActivity extends AppCompatActivity {
         // Get order ID from intent
         orderId = getIntent().getStringExtra("order_id");
         if (orderId == null || orderId.isEmpty()) {
-            Toast.makeText(this, "Không tìm thấy thông tin đơn hàng", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.order_not_found), Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
@@ -103,7 +104,7 @@ public class OrderDetailActivity extends AppCompatActivity {
             if (currentOrder != null) {
                 showCancelOrderDialog(currentOrder);
             } else {
-                Toast.makeText(this, "Không tìm thấy thông tin đơn hàng", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.order_not_found), Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -113,6 +114,7 @@ public class OrderDetailActivity extends AppCompatActivity {
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setDisplayShowHomeEnabled(true);
+            getSupportActionBar().setTitle(getString(R.string.order_details_title));
         }
         toolbar.setNavigationOnClickListener(v -> finish());
     }
@@ -125,7 +127,7 @@ public class OrderDetailActivity extends AppCompatActivity {
 
     private void loadOrderDetails() {
         if (!NetworkUtils.isConnected(this)) {
-            Toast.makeText(this, "Không có kết nối mạng", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.no_network_connection), Toast.LENGTH_SHORT).show();
             showEmpty();
             return;
         }
@@ -149,7 +151,7 @@ public class OrderDetailActivity extends AppCompatActivity {
                     } else {
                         Log.e(TAG, "Failed to load order: " + body.getMessage());
                         Toast.makeText(OrderDetailActivity.this, 
-                            body.getMessage() != null ? body.getMessage() : "Không thể tải thông tin đơn hàng",
+                            body.getMessage() != null ? body.getMessage() : getString(R.string.failed_to_load_order),
                             Toast.LENGTH_SHORT).show();
                         showEmpty();
                     }
@@ -165,7 +167,7 @@ public class OrderDetailActivity extends AppCompatActivity {
             public void onFailure(Call<BaseResponse<OrderResponse>> call, Throwable t) {
                 progressBar.setVisibility(View.GONE);
                 Log.e(TAG, "Error loading order details", t);
-                Toast.makeText(OrderDetailActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(OrderDetailActivity.this, getString(R.string.error_message, t.getMessage()), Toast.LENGTH_SHORT).show();
                 showEmpty();
             }
         });
@@ -179,7 +181,7 @@ public class OrderDetailActivity extends AppCompatActivity {
         if (orderIdShort != null && orderIdShort.length() > 8) {
             orderIdShort = orderIdShort.substring(orderIdShort.length() - 8).toUpperCase();
         }
-        txtOrderId.setText("Đơn hàng #" + (orderIdShort != null ? orderIdShort : "N/A"));
+        txtOrderId.setText(getString(R.string.order_hash, (orderIdShort != null ? orderIdShort : "N/A")));
 
         // Status
         String trangThai = order.getTrangThai();
@@ -215,7 +217,7 @@ public class OrderDetailActivity extends AppCompatActivity {
 
         // Date
         String dateStr = formatDate(order.getCreatedAt());
-        txtOrderDate.setText("Ngày đặt: " + dateStr);
+        txtOrderDate.setText(getString(R.string.order_date, dateStr));
 
         // Total
         Integer tongTien = order.getTongTien();
@@ -241,7 +243,7 @@ public class OrderDetailActivity extends AppCompatActivity {
 
         // Customer name - ưu tiên từ order, nếu không có thì lấy từ SessionManager
         if (tenKhachHang != null && !tenKhachHang.isEmpty()) {
-            txtCustomerName.setText("Tên khách hàng: " + tenKhachHang);
+            txtCustomerName.setText(getString(R.string.customer_name, tenKhachHang));
         } else {
             // Thử lấy từ SessionManager nếu đơn hàng là của user hiện tại
             SessionManager sessionManager = new SessionManager(this);
@@ -251,32 +253,56 @@ public class OrderDetailActivity extends AppCompatActivity {
                 if (currentUserId != null && orderUserId != null && currentUserId.equals(orderUserId)) {
                     String userName = sessionManager.getUserName();
                     if (userName != null && !userName.isEmpty()) {
-                        txtCustomerName.setText("Tên khách hàng: " + userName);
+                        txtCustomerName.setText(getString(R.string.customer_name, userName));
                     } else {
-                        txtCustomerName.setText("Tên khách hàng: Chưa cập nhật");
+                        txtCustomerName.setText(getString(R.string.customer_name, getString(R.string.not_updated)));
                     }
                 } else {
-                    txtCustomerName.setText("Tên khách hàng: Chưa cập nhật");
+                    txtCustomerName.setText(getString(R.string.customer_name, getString(R.string.not_updated)));
                 }
             } else {
-                txtCustomerName.setText("Tên khách hàng: Chưa cập nhật");
+                txtCustomerName.setText(getString(R.string.customer_name, getString(R.string.not_updated)));
             }
         }
 
-        if (diaChi != null && !diaChi.isEmpty()) {
-            txtDeliveryAddress.setText("Địa chỉ: " + diaChi);
+        // Ưu tiên lấy địa chỉ nhận hàng từ order, nếu không có thì lấy từ SessionManager
+        SessionManager sessionManager = new SessionManager(this);
+        String deliveryAddress = diaChi;
+        if (deliveryAddress == null || deliveryAddress.isEmpty()) {
+            deliveryAddress = sessionManager.getDeliveryAddress();
+        }
+        if (deliveryAddress != null && !deliveryAddress.isEmpty()) {
+            txtDeliveryAddress.setText(getString(R.string.address, deliveryAddress));
         } else {
-            txtDeliveryAddress.setText("Địa chỉ: Chưa cập nhật");
+            txtDeliveryAddress.setText(getString(R.string.address, getString(R.string.not_updated)));
         }
 
-        if (soDienThoai != null && !soDienThoai.isEmpty()) {
-            txtDeliveryPhone.setText("Số điện thoại: " + soDienThoai);
+        // Ưu tiên lấy số điện thoại từ SessionManager (vì order có thể có dữ liệu sai)
+        // Chỉ dùng số điện thoại từ order nếu đơn hàng không phải của user hiện tại
+        String phoneNumber = null;
+        if (sessionManager.isLoggedIn()) {
+            String currentUserId = sessionManager.getUserId();
+            String orderUserId = order.getUserId();
+            if (currentUserId != null && orderUserId != null && currentUserId.equals(orderUserId)) {
+                // Đơn hàng của user hiện tại - lấy từ SessionManager
+                phoneNumber = sessionManager.getPhone();
+            } else {
+                // Đơn hàng của user khác - lấy từ order
+                phoneNumber = soDienThoai;
+            }
         } else {
-            txtDeliveryPhone.setText("Số điện thoại: Chưa cập nhật");
+            // Chưa đăng nhập - lấy từ order
+            phoneNumber = soDienThoai;
+        }
+        
+        if (phoneNumber != null && !phoneNumber.isEmpty()) {
+            txtDeliveryPhone.setText(getString(R.string.phone_number, phoneNumber));
+        } else {
+            txtDeliveryPhone.setText(getString(R.string.phone_number, getString(R.string.not_updated)));
         }
 
         if (ghiChu != null && !ghiChu.isEmpty()) {
-            txtNote.setText("Ghi chú: " + ghiChu);
+            txtNote.setText(getString(R.string.note, ghiChu));
             txtNote.setVisibility(View.VISIBLE);
         } else {
             txtNote.setVisibility(View.GONE);
@@ -328,7 +354,7 @@ public class OrderDetailActivity extends AppCompatActivity {
     }
 
     private String formatPrice(long price) {
-        return String.format("%,d₫", price).replace(",", ".");
+        return String.format(Locale.getDefault(), "%,d₫", price).replace(",", ".");
     }
 
     private void showCancelOrderDialog(OrderResponse order) {
@@ -353,7 +379,7 @@ public class OrderDetailActivity extends AppCompatActivity {
         btnConfirmCancel.setOnClickListener(v -> {
             int selectedId = radioGroupReasons.getCheckedRadioButtonId();
             if (selectedId == -1) {
-                Toast.makeText(this, "Vui lòng chọn lý do hủy đơn hàng", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.please_select_reason_to_cancel), Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -371,7 +397,7 @@ public class OrderDetailActivity extends AppCompatActivity {
 
     private void cancelOrder(OrderResponse order, String lyDo) {
         if (!NetworkUtils.isConnected(this)) {
-            Toast.makeText(this, "Không có kết nối mạng", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.no_network_connection), Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -385,12 +411,12 @@ public class OrderDetailActivity extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     BaseResponse<OrderResponse> body = response.body();
                     if (body.getSuccess()) {
-                        Toast.makeText(OrderDetailActivity.this, "Đã hủy đơn hàng thành công", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(OrderDetailActivity.this, getString(R.string.cancel_order_success), Toast.LENGTH_SHORT).show();
                         // Reload order details to update status
                         loadOrderDetails();
                     } else {
                         Toast.makeText(OrderDetailActivity.this,
-                            body.getMessage() != null ? body.getMessage() : "Không thể hủy đơn hàng",
+                            body.getMessage() != null ? body.getMessage() : getString(R.string.cancel_order_failed),
                             Toast.LENGTH_SHORT).show();
                     }
                 } else {
@@ -400,7 +426,7 @@ public class OrderDetailActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<BaseResponse<OrderResponse>> call, Throwable t) {
-                Toast.makeText(OrderDetailActivity.this, "Lỗi: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(OrderDetailActivity.this, getString(R.string.error_message, t.getMessage()), Toast.LENGTH_SHORT).show();
             }
         });
     }

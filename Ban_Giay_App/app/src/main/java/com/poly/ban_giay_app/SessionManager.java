@@ -17,6 +17,9 @@ public class SessionManager {
     private static final String KEY_USER_NAME = "key_user_name";
     private static final String KEY_FULL_NAME = "key_full_name";
     private static final String KEY_EMAIL = "key_email";
+    private static final String KEY_PHONE = "key_phone";
+    private static final String KEY_ADDRESS = "key_address";
+    private static final String KEY_DELIVERY_ADDRESS = "key_delivery_address";
 
     private final SharedPreferences sharedPreferences;
     private final Context appContext;
@@ -35,6 +38,8 @@ public class SessionManager {
             editor.putString(KEY_USER_NAME, safeValue(user.getUsername()));
             editor.putString(KEY_FULL_NAME, safeValue(user.getFullName()));
             editor.putString(KEY_EMAIL, safeValue(user.getEmail()));
+            editor.putString(KEY_PHONE, safeValue(user.getPhone()));
+            editor.putString(KEY_ADDRESS, safeValue(user.getAddress()));
         }
         editor.apply();
     }
@@ -64,6 +69,45 @@ public class SessionManager {
 
     public String getUserId() {
         return sharedPreferences.getString(KEY_USER_ID, "");
+    }
+
+    public String getPhone() {
+        return sharedPreferences.getString(KEY_PHONE, "");
+    }
+
+    public String getAddress() {
+        return sharedPreferences.getString(KEY_ADDRESS, "");
+    }
+
+    public String getDeliveryAddress() {
+        return sharedPreferences.getString(KEY_DELIVERY_ADDRESS, "");
+    }
+
+    public void updateProfileInfo(String fullName, String phone, String address, String deliveryAddress) {
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        if (fullName != null && !fullName.isEmpty()) {
+            editor.putString(KEY_FULL_NAME, fullName);
+        }
+        if (phone != null && !phone.isEmpty()) {
+            editor.putString(KEY_PHONE, phone);
+        }
+        if (address != null && !address.isEmpty()) {
+            editor.putString(KEY_ADDRESS, address);
+        }
+        if (deliveryAddress != null && !deliveryAddress.isEmpty()) {
+            editor.putString(KEY_DELIVERY_ADDRESS, deliveryAddress);
+        }
+        editor.apply();
+    }
+
+    public boolean hasCompleteProfile() {
+        String fullName = sharedPreferences.getString(KEY_FULL_NAME, "");
+        String phone = sharedPreferences.getString(KEY_PHONE, "");
+        String address = sharedPreferences.getString(KEY_ADDRESS, "");
+        
+        return !fullName.isEmpty() && 
+               !phone.isEmpty() && phone.length() >= 10 && 
+               !address.isEmpty() && address.contains("@gmail.com");
     }
 
     public void logout() {

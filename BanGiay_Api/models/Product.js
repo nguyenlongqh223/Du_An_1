@@ -18,6 +18,9 @@ const ProductSchema = new mongoose.Schema(
     danh_gia: { type: Number, default: 5.0 }, // 1-5 sao
     so_luong_da_ban: { type: Number, default: 0 },
     trang_thai: { type: String, enum: ["active", "inactive"], default: "active" },
+    // Soft delete fields
+    is_deleted: { type: Boolean, default: false },
+    deleted_at: { type: Date, default: null },
   },
   { timestamps: true }
 );

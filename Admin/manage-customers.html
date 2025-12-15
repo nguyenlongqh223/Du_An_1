@@ -89,21 +89,6 @@
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
         
-        .btn-edit {
-            padding: 6px 12px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        
-        .btn-edit:hover {
-            background: #0056b3;
-        }
-        
         .btn-delete {
             padding: 6px 12px;
             background: #dc3545;
@@ -267,7 +252,6 @@
             <a href="manage-orders.html" class="nav-item">Quản lý Đơn hàng</a>
             <a href="manage-products.html" class="nav-item">Quản lý Sản phẩm</a>
             <a href="manage-categories.html" class="nav-item">Quản lý Danh mục</a>
-            <a href="manage-carts.html" class="nav-item">Quản lý Giỏ hàng</a>
         </nav>
 
         <div class="content-box">
@@ -293,7 +277,6 @@
                             <th>EMAIL</th>
                             <th>SỐ ĐIỆN THOẠI</th>
                             <th>ĐỊA CHỈ</th>
-                            <th>TRẠNG THÁI</th>
                             <th>THAO TÁC</th>
                         </tr>
                     </thead>
@@ -311,8 +294,6 @@
                 <span class="close" onclick="closeModal()">&times;</span>
             </div>
             <form id="customerForm" onsubmit="saveCustomer(event)">
-                <input type="hidden" id="customerId">
-                
                 <div class="form-row">
                     <div class="form-group">
                         <label for="ho_ten">Họ và tên *</label>
@@ -336,9 +317,8 @@
                 </div>
                 
                 <div class="form-group form-group-full">
-                    <label for="mat_khau">Mật khẩu <span id="passwordRequired">*</span></label>
-                    <input type="password" id="mat_khau">
-                    <div class="password-note" id="passwordNote">Để trống nếu không muốn thay đổi mật khẩu (khi sửa)</div>
+                    <label for="mat_khau">Mật khẩu *</label>
+                    <input type="password" id="mat_khau" required>
                 </div>
                 
                 <div class="form-group form-group-full">
@@ -365,6 +345,7 @@
             
             try {
                 const customers = await loadData('customers');
+                console.log('Loaded customers:', customers); // Debug log
                 allCustomers = customers;
                 displayCustomers(allCustomers);
             } catch (error) {
@@ -379,30 +360,28 @@
             tbody.innerHTML = '';
             
             if (customers.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Không tìm thấy khách hàng nào</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Không tìm thấy khách hàng nào</td></tr>';
                 return;
             }
             
             customers.forEach(customer => {
                 const row = document.createElement('tr');
+                // Get phone - check multiple possible fields and ensure it's a string
+                const phone = String(customer.so_dien_thoai || customer.phone || '').trim();
+                // Get address - check multiple possible fields and ensure it's a string
+                const address = String(customer.dia_chi || customer.address || '').trim();
+                
                 row.innerHTML = `
                     <td>${customer.name || customer.ho_ten || 'N/A'}</td>
                     <td>${customer.email || 'N/A'}</td>
-                    <td>${customer.phone || customer.so_dien_thoai || 'N/A'}</td>
-                    <td>${customer.dia_chi || 'N/A'}</td>
-                    <td><span class="badge ${customer.status || 'active'}">${getStatusName(customer.status)}</span></td>
+                    <td>${phone || 'N/A'}</td>
+                    <td>${address || 'N/A'}</td>
                     <td>
-                        <button class="btn-edit" onclick="openEditModal('${customer.id || customer._id}')">Sửa</button>
                         <button class="btn-delete" onclick="deleteCustomer('${customer.id || customer._id}')">Xóa</button>
                     </td>
                 `;
                 tbody.appendChild(row);
             });
-        }
-
-        // Get status name
-        function getStatusName(status) {
-            return status === 'active' ? 'HOẠT ĐỘNG' : 'NGỪNG HOẠT ĐỘNG';
         }
 
         // Search customers
@@ -421,35 +400,7 @@
         function openAddModal() {
             document.getElementById('modalTitle').textContent = 'Thêm khách hàng mới';
             document.getElementById('customerForm').reset();
-            document.getElementById('customerId').value = '';
-            document.getElementById('mat_khau').required = true;
-            document.getElementById('passwordRequired').style.display = 'inline';
-            document.getElementById('passwordNote').style.display = 'none';
             document.getElementById('customerModal').style.display = 'block';
-        }
-
-        // Open edit modal
-        async function openEditModal(customerId) {
-            try {
-                const response = await apiCall(`/user/${customerId}`);
-                const customer = response.user || response;
-                
-                document.getElementById('modalTitle').textContent = 'Sửa thông tin khách hàng';
-                document.getElementById('customerId').value = customerId;
-                document.getElementById('ho_ten').value = customer.ho_ten || '';
-                document.getElementById('ten_dang_nhap').value = customer.ten_dang_nhap || '';
-                document.getElementById('email').value = customer.email || '';
-                document.getElementById('so_dien_thoai').value = customer.so_dien_thoai || '';
-                document.getElementById('dia_chi').value = customer.dia_chi || '';
-                document.getElementById('mat_khau').value = '';
-                document.getElementById('mat_khau').required = false;
-                document.getElementById('passwordRequired').style.display = 'none';
-                document.getElementById('passwordNote').style.display = 'block';
-                
-                document.getElementById('customerModal').style.display = 'block';
-            } catch (error) {
-                alert('Không thể tải thông tin khách hàng: ' + error.message);
-            }
         }
 
         // Close modal
@@ -461,7 +412,6 @@
         async function saveCustomer(event) {
             event.preventDefault();
             
-            const customerId = document.getElementById('customerId').value;
             const customerData = {
                 ho_ten: document.getElementById('ho_ten').value,
                 ten_dang_nhap: document.getElementById('ten_dang_nhap').value,
@@ -470,33 +420,20 @@
                 dia_chi: document.getElementById('dia_chi').value
             };
             
-            // Only include password if provided
+            // Password is required for new customers
             const password = document.getElementById('mat_khau').value;
-            if (password) {
-                customerData.mat_khau = password;
+            if (!password) {
+                alert('Vui lòng nhập mật khẩu cho khách hàng mới!');
+                return;
             }
+            customerData.mat_khau = password;
             
             try {
-                if (customerId) {
-                    // Update
-                    await apiCall(`/user/${customerId}`, {
-                        method: 'PUT',
-                        body: JSON.stringify(customerData)
-                    });
-                    alert('Cập nhật khách hàng thành công!');
-                } else {
-                    // Create - password is required
-                    if (!password) {
-                        alert('Vui lòng nhập mật khẩu cho khách hàng mới!');
-                        return;
-                    }
-                    customerData.mat_khau = password;
-                    await apiCall('/user', {
-                        method: 'POST',
-                        body: JSON.stringify(customerData)
-                    });
-                    alert('Thêm khách hàng thành công!');
-                }
+                await apiCall('/user', {
+                    method: 'POST',
+                    body: JSON.stringify(customerData)
+                });
+                alert('Thêm khách hàng thành công!');
                 
                 closeModal();
                 loadCustomers();
@@ -512,18 +449,22 @@
 
         // Delete customer
         async function deleteCustomer(customerId) {
-            if (!confirm('Bạn có chắc chắn muốn xóa khách hàng này?')) {
+            if (!confirm('Bạn có chắc chắn muốn ẩn khách hàng này?\n\nDữ liệu vẫn được giữ trong database, chỉ ẩn khỏi danh sách.')) {
                 return;
             }
             
             try {
-                await apiCall(`/user/${customerId}`, {
+                const response = await apiCall(`/user/${customerId}`, {
                     method: 'DELETE'
                 });
-                alert('Xóa khách hàng thành công!');
-                loadCustomers();
+                if (response && response.success !== false) {
+                    alert('Đã ẩn khách hàng thành công (dữ liệu vẫn được giữ trong database)!');
+                    loadCustomers();
+                } else {
+                    throw new Error(response?.message || 'Không thể ẩn khách hàng');
+                }
             } catch (error) {
-                alert('Lỗi: ' + (error.message || 'Không thể xóa khách hàng'));
+                alert('Lỗi: ' + (error.message || 'Không thể ẩn khách hàng'));
             }
         }
 

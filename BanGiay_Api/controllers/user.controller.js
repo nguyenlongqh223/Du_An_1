@@ -5,8 +5,10 @@ exports.getAllUsers = async (req, res) => {
   try {
     console.log("\n========== GET ALL USERS ==========");
     
-    // Lấy users nhưng không lấy password
-    const users = await User.find().select("-mat_khau -otp -otpExpires").sort({ createdAt: -1 });
+    // Lấy users nhưng không lấy password - exclude deleted users
+    const users = await User.find({ is_deleted: { $ne: true } })
+      .select("-mat_khau -otp -otpExpires")
+      .sort({ createdAt: -1 });
     
     console.log(`Found ${users.length} users`);
     
@@ -96,11 +98,35 @@ exports.updateUser = async (req, res) => {
 // Xóa User theo ID
 exports.deleteUser = async (req, res) => {
   try {
-    const deletedUser = await User.findByIdAndDelete(req.params.id);
-    if (!deletedUser)
-      return res.status(404).json({ message: "User không tồn tại" });
-    res.json({ message: "Xóa User thành công" });
+    const { id } = req.params;
+    console.log(`\n========== SOFT DELETE USER ==========`);
+    console.log(`User ID: ${id}`);
+    
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        message: "User không tồn tại" 
+      });
+    }
+    
+    // Soft delete - ẩn user, giữ trong MongoDB
+    user.is_deleted = true;
+    user.deleted_at = new Date();
+    await user.save();
+    
+    console.log(`✅ User soft deleted (hidden): ${user.ho_ten || user.ten_dang_nhap}`);
+    console.log("==========================================\n");
+    
+    res.json({ 
+      success: true,
+      message: "Đã ẩn user thành công (dữ liệu vẫn được giữ trong database)" 
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("❌ Lỗi khi ẩn user:", err);
+    res.status(500).json({ 
+      success: false,
+      error: err.message || "Lỗi server khi ẩn user" 
+    });
   }
 };

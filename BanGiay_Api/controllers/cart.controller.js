@@ -246,7 +246,10 @@ exports.getCart = async (req, res) => {
     }
     userIdObjectId = new mongoose.Types.ObjectId(user_id);
 
-    const cart = await Cart.findOne({ user_id: userIdObjectId }).populate({
+    const cart = await Cart.findOne({ 
+      user_id: userIdObjectId,
+      is_deleted: { $ne: true }
+    }).populate({
       path: "items.san_pham_id",
       select: "ten_san_pham gia_goc gia_khuyen_mai hinh_anh mo_ta thuong_hieu danh_muc danh_gia kich_thuoc so_luong_ton _id",
     });
@@ -485,18 +488,20 @@ exports.deleteCartById = async (req, res) => {
 
     console.log(`✅ Cart found: ${cart._id}`);
 
-    // Xóa giỏ hàng
-    await Cart.findByIdAndDelete(cartId);
+    // Soft delete - ẩn giỏ hàng, giữ trong MongoDB
+    cart.is_deleted = true;
+    cart.deleted_at = new Date();
+    await cart.save();
 
-    console.log(`✅ Cart deleted: ${cartId}`);
+    console.log(`✅ Cart soft deleted (hidden): ${cartId}`);
     console.log("==========================================\n");
 
     res.json({
       success: true,
-      message: "Đã xóa giỏ hàng thành công",
+      message: "Đã ẩn giỏ hàng thành công (dữ liệu vẫn được giữ trong database)",
       data: {
         cartId: cartId,
-        deletedAt: new Date(),
+        deletedAt: cart.deleted_at,
       },
     });
   } catch (err) {

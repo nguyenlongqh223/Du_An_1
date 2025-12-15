@@ -20,6 +20,14 @@ const CartSchema = new mongoose.Schema(
       unique: true,
     },
     items: [CartItemSchema],
+    is_deleted: {
+      type: Boolean,
+      default: false,
+    },
+    deleted_at: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

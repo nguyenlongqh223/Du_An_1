@@ -8,6 +8,7 @@
     android:paddingEnd="16dp"
     android:paddingTop="12dp"
     android:paddingBottom="12dp"
+    android:layout_marginTop="30dp"
     android:background="@android:color/white"
     android:minHeight="80dp"
     android:layout_marginBottom="1dp">
@@ -49,6 +50,30 @@
         android:maxLines="3"
         android:ellipsize="end"
         android:text="Message" />
+
+    <!-- Tên sản phẩm (hiển thị khi có) -->
+    <TextView
+        android:id="@+id/tvProductName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:textColor="#006C67"
+        android:textSize="13sp"
+        android:textStyle="italic"
+        android:visibility="gone"
+        android:text="Sản phẩm: " />
+
+    <!-- Lý do hủy đơn (hiển thị khi có) -->
+    <TextView
+        android:id="@+id/tvCancellationReason"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:textColor="#E53935"
+        android:textSize="13sp"
+        android:textStyle="italic"
+        android:visibility="gone"
+        android:text="Lý do hủy: " />
 
     <View
         android:layout_width="match_parent"

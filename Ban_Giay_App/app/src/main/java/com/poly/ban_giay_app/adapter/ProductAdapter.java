@@ -47,6 +47,18 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
     public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View v = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_product, parent, false);
+        
+        // Tính toán width để hiển thị 2 sản phẩm trên màn hình
+        ViewGroup.LayoutParams params = v.getLayoutParams();
+        if (params != null) {
+            int screenWidth = parent.getContext().getResources().getDisplayMetrics().widthPixels;
+            int margin = (int) (8 * parent.getContext().getResources().getDisplayMetrics().density * 2); // margin left + right
+            int padding = (int) (16 * parent.getContext().getResources().getDisplayMetrics().density); // padding của RecyclerView
+            int itemWidth = (screenWidth - padding - margin * 2) / 2; // 2 sản phẩm
+            params.width = itemWidth;
+            v.setLayoutParams(params);
+        }
+        
         return new VH(v);
     }
 

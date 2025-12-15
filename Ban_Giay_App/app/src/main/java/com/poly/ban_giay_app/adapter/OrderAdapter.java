@@ -80,40 +80,37 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
             if (orderId != null && orderId.length() > 8) {
                 orderId = orderId.substring(orderId.length() - 8).toUpperCase();
             }
-            txtOrderId.setText("Đơn hàng #" + (orderId != null ? orderId : "N/A"));
+            txtOrderId.setText(context.getString(R.string.order_hash, (orderId != null ? orderId : "N/A")));
 
             // Trạng thái
             String trangThai = order.getTrangThai();
             String trangThaiDisplay = order.getTrangThaiDisplay();
             txtOrderStatus.setText(trangThaiDisplay);
 
-            // Màu sắc và background cho trạng thái
+            // Màu sắc cho trạng thái
             int statusColor;
-            int statusBg;
-            switch (trangThai) {
-                case "pending":
-                    statusColor = ContextCompat.getColor(context, android.R.color.holo_orange_dark);
-                    statusBg = R.drawable.bg_status_pending;
-                    break;
-                case "confirmed":
-                    statusColor = ContextCompat.getColor(context, android.R.color.holo_blue_dark);
-                    statusBg = R.drawable.bg_status_pending;
-                    break;
-                case "shipping":
-                    statusColor = ContextCompat.getColor(context, android.R.color.holo_blue_light);
-                    statusBg = R.drawable.bg_status_pending;
-                    break;
-                case "delivered":
-                    statusColor = ContextCompat.getColor(context, android.R.color.holo_green_dark);
-                    statusBg = R.drawable.bg_status_pending;
-                    break;
-                case "cancelled":
-                    statusColor = ContextCompat.getColor(context, android.R.color.holo_red_dark);
-                    statusBg = R.drawable.bg_status_pending;
-                    break;
-                default:
-                    statusColor = ContextCompat.getColor(context, android.R.color.darker_gray);
-                    statusBg = R.drawable.bg_status_pending;
+            if (trangThai != null) {
+                 switch (trangThai) {
+                    case "pending":
+                        statusColor = ContextCompat.getColor(context, android.R.color.holo_orange_dark);
+                        break;
+                    case "confirmed":
+                        statusColor = ContextCompat.getColor(context, android.R.color.holo_blue_dark);
+                        break;
+                    case "shipping":
+                        statusColor = ContextCompat.getColor(context, android.R.color.holo_blue_light);
+                        break;
+                    case "delivered":
+                        statusColor = ContextCompat.getColor(context, android.R.color.holo_green_dark);
+                        break;
+                    case "cancelled":
+                        statusColor = ContextCompat.getColor(context, android.R.color.holo_red_dark);
+                        break;
+                    default:
+                        statusColor = ContextCompat.getColor(context, android.R.color.darker_gray);
+                }
+            } else {
+                statusColor = ContextCompat.getColor(context, android.R.color.darker_gray);
             }
             txtOrderStatus.setTextColor(statusColor);
 
@@ -131,15 +128,15 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
                     SimpleDateFormat outputFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
                     Date date = inputFormat.parse(order.getCreatedAt());
                     if (date != null) {
-                        txtOrderDate.setText("Ngày đặt: " + outputFormat.format(date));
+                        txtOrderDate.setText(context.getString(R.string.order_date, outputFormat.format(date)));
                     } else {
-                        txtOrderDate.setText("Ngày đặt: " + order.getCreatedAt());
+                        txtOrderDate.setText(context.getString(R.string.order_date, order.getCreatedAt()));
                     }
                 } catch (Exception e) {
-                    txtOrderDate.setText("Ngày đặt: " + order.getCreatedAt());
+                    txtOrderDate.setText(context.getString(R.string.order_date, order.getCreatedAt()));
                 }
             } else {
-                txtOrderDate.setText("Ngày đặt: N/A");
+                txtOrderDate.setText(context.getString(R.string.order_date, "N/A"));
             }
 
             // Hiển thị danh sách sản phẩm
@@ -149,17 +146,20 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
                     View itemView = LayoutInflater.from(context)
                             .inflate(R.layout.item_order_product, layoutOrderItems, false);
                     
-                    TextView txtItemName = itemView.findViewById(R.id.txtItemName);
-                    TextView txtItemInfo = itemView.findViewById(R.id.txtItemInfo);
-                    TextView txtItemPrice = itemView.findViewById(R.id.txtItemPrice);
+                    TextView txtProductName = itemView.findViewById(R.id.txtProductName);
+                    TextView txtProductSize = itemView.findViewById(R.id.txtProductSize);
+                    TextView txtProductQuantity = itemView.findViewById(R.id.txtProductQuantity);
+                    TextView txtProductPrice = itemView.findViewById(R.id.txtProductPrice);
 
-                    txtItemName.setText(item.getTenSanPham());
-                    txtItemInfo.setText("Size: " + item.getKichThuoc() + " x " + item.getSoLuong());
-                    if (item.getGia() != null) {
-                        long itemTotal = item.getGia() * item.getSoLuong();
-                        txtItemPrice.setText(formatPrice(itemTotal));
+                    txtProductName.setText(item.getTenSanPham());
+                    txtProductSize.setText(context.getString(R.string.size_label, item.getKichThuoc()));
+                    txtProductQuantity.setText(context.getString(R.string.quantity_label, String.valueOf(item.getSoLuong())));
+                    
+                    if (item.getGia() != null && item.getSoLuong() != null) {
+                        long itemTotal = (long) item.getGia() * item.getSoLuong();
+                        txtProductPrice.setText(formatPrice(itemTotal));
                     } else {
-                        txtItemPrice.setText("0₫");
+                        txtProductPrice.setText("0₫");
                     }
 
                     layoutOrderItems.addView(itemView);
@@ -188,8 +188,7 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
         }
 
         private String formatPrice(long price) {
-            return String.format("%,d₫", price).replace(",", ".");
+            return String.format(Locale.getDefault(), "%,d₫", price).replace(",", ".");
         }
     }
 }
-

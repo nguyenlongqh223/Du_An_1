@@ -11,6 +11,9 @@ router.get("/", OrderController.getOrders);
 // PUT /api/order/:orderId/status - Cập nhật trạng thái đơn hàng (phải đặt trước /:orderId)
 router.put("/:orderId/status", OrderController.updateOrderStatus);
 
+// PUT /api/order/:orderId/payment - Cập nhật trạng thái thanh toán (phải đặt trước /:orderId)
+router.put("/:orderId/payment", OrderController.updatePaymentStatus);
+
 // PUT /api/order/:orderId/cancel - Hủy đơn hàng (phải đặt trước /:orderId)
 router.put("/:orderId/cancel", OrderController.cancelOrder);
 

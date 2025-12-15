@@ -174,45 +174,62 @@ public class PaymentMethodActivity extends AppCompatActivity {
 
         // Credit Card payment
         paymentCreditCard.setOnClickListener(v -> {
-            Intent intent = new Intent(PaymentMethodActivity.this, CreditCardActivity.class);
-            if (isFromCart) {
-                intent.putExtra("isFromCart", true);
-            } else {
-                intent.putExtra("product", product);
-                intent.putExtra("quantity", quantity);
-                intent.putExtra("selectedSize", selectedSize);
-                intent.putExtra("isFromCart", false);
+            if (checkProfileAndNavigate()) {
+                Intent intent = new Intent(PaymentMethodActivity.this, CreditCardActivity.class);
+                if (isFromCart) {
+                    intent.putExtra("isFromCart", true);
+                } else {
+                    intent.putExtra("product", product);
+                    intent.putExtra("quantity", quantity);
+                    intent.putExtra("selectedSize", selectedSize);
+                    intent.putExtra("isFromCart", false);
+                }
+                startActivity(intent);
             }
-            startActivity(intent);
         });
 
         // ATM Card payment
         paymentATM.setOnClickListener(v -> {
-            Intent intent = new Intent(PaymentMethodActivity.this, AtmCardActivity.class);
-            if (isFromCart) {
-                intent.putExtra("isFromCart", true);
-            } else {
-                intent.putExtra("product", product);
-                intent.putExtra("quantity", quantity);
-                intent.putExtra("selectedSize", selectedSize);
-                intent.putExtra("isFromCart", false);
+            if (checkProfileAndNavigate()) {
+                Intent intent = new Intent(PaymentMethodActivity.this, AtmCardActivity.class);
+                if (isFromCart) {
+                    intent.putExtra("isFromCart", true);
+                } else {
+                    intent.putExtra("product", product);
+                    intent.putExtra("quantity", quantity);
+                    intent.putExtra("selectedSize", selectedSize);
+                    intent.putExtra("isFromCart", false);
+                }
+                startActivity(intent);
             }
-            startActivity(intent);
         });
 
         // Cash on Delivery payment - Navigate to bank payment
         paymentCOD.setOnClickListener(v -> {
-            Intent intent = new Intent(PaymentMethodActivity.this, BankPaymentActivity.class);
-            if (isFromCart) {
-                intent.putExtra("isFromCart", true);
-            } else {
-                intent.putExtra("product", product);
-                intent.putExtra("quantity", quantity);
-                intent.putExtra("selectedSize", selectedSize);
-                intent.putExtra("isFromCart", false);
+            if (checkProfileAndNavigate()) {
+                Intent intent = new Intent(PaymentMethodActivity.this, BankPaymentActivity.class);
+                if (isFromCart) {
+                    intent.putExtra("isFromCart", true);
+                } else {
+                    intent.putExtra("product", product);
+                    intent.putExtra("quantity", quantity);
+                    intent.putExtra("selectedSize", selectedSize);
+                    intent.putExtra("isFromCart", false);
+                }
+                startActivity(intent);
             }
-            startActivity(intent);
         });
+    }
+
+    private boolean checkProfileAndNavigate() {
+        if (!sessionManager.hasCompleteProfile()) {
+            Toast.makeText(this, "Vui lòng cập nhật thông tin cá nhân trước khi thanh toán", Toast.LENGTH_LONG).show();
+            Intent intent = new Intent(PaymentMethodActivity.this, UpdateProfileActivity.class);
+            intent.putExtra("isFromPayment", true);
+            startActivity(intent);
+            return false;
+        }
+        return true;
     }
 
     private void selectPaymentMethod(String method, LinearLayout layout) {
